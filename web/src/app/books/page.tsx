@@ -6,11 +6,13 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { Loading } from "@/components/ui/Loading";
 import { api, url, type Library, type ShelfBook } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function BooksPage() {
-  const { ready, me, signIn, signOut } = useAuth();
+  const { ready, me, signIn, signOut, signingIn } = useAuth();
   const router = useRouter();
   const [library, setLibrary] = useState<Library | null>(null);
   const [failed, setFailed] = useState(false);
@@ -30,24 +32,30 @@ export default function BooksPage() {
       <main className="page-x mx-auto w-full max-w-7xl pb-24">
         <h1 className="pt-4 text-head lg:pt-8">Your library</h1>
 
-        {!ready ? null : !me ? (
+        {!ready ? (
+          <Loading
+            label={signingIn ? "Signing you in" : "Opening your library"}
+          />
+        ) : !me ? (
           <div className="mt-6 max-w-xl">
             <p className="text-ink-soft">
               Sign in to see the books you&rsquo;ve made.
             </p>
-            <button
-              onClick={() => signIn()}
-              className="mt-5 rounded-full bg-saffron px-6 py-2.5 font-medium text-white hover:bg-[#f5b04f]"
+            <Button
+              className="mt-5"
+              onClick={() => signIn("/books/")}
+              loading={signingIn}
+              loadingText="Opening Google…"
             >
               Sign in with Google
-            </button>
+            </Button>
           </div>
         ) : failed ? (
           <p className="mt-6 text-danger">
             Your library couldn&rsquo;t be loaded. Please refresh.
           </p>
         ) : !library ? (
-          <div className="h-64" aria-busy="true" />
+          <Loading label="Opening your library" />
         ) : (
           <>
             <p className="mt-2 text-ink-soft">
@@ -57,12 +65,9 @@ export default function BooksPage() {
             {library.children.length === 0 ? (
               <div className="mt-10 max-w-xl">
                 <p className="text-lg">No books yet.</p>
-                <Link
-                  href="/#make"
-                  className="mt-4 inline-block rounded-full bg-saffron px-6 py-2.5 font-medium text-white hover:bg-[#f5b04f]"
-                >
+                <ButtonLink href="/create/" className="mt-4">
                   Make the first one
-                </Link>
+                </ButtonLink>
               </div>
             ) : (
               library.children.map((child) => (
@@ -93,7 +98,7 @@ export default function BooksPage() {
             )}
             <div className="mt-16 flex flex-wrap gap-x-8 gap-y-3 border-t border-ink/15 pt-6">
               <Link
-                href="/#make"
+                href="/create/"
                 className="font-medium text-ink hover:text-saffron-deep"
               >
                 Make another book
@@ -179,14 +184,20 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
       <div className="mt-4 flex gap-3">
         <button
           disabled={working}
+          aria-busy={working || undefined}
           onClick={async () => {
             setWorking(true);
-            await api.deleteAccount();
-            onDeleted();
+            try {
+              await api.deleteAccount();
+              onDeleted();
+            } catch {
+              setWorking(false);
+            }
           }}
-          className="rounded-full bg-danger px-5 py-2 font-medium text-white disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-full bg-danger px-5 py-2 font-medium text-white disabled:opacity-70"
         >
-          Delete everything
+          {working && <span className="btn-spinner" aria-hidden="true" />}
+          {working ? "Deleting…" : "Delete everything"}
         </button>
         <button
           onClick={() => setAsking(false)}

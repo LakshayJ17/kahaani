@@ -7,6 +7,8 @@ import BookReader from "@/components/BookReader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import Progress from "@/components/Progress";
+import { Button } from "@/components/ui/Button";
+import { Loading } from "@/components/ui/Loading";
 import {
   api,
   RequestError,
@@ -22,7 +24,7 @@ export default function ViewPage() {
       <SiteHeader />
       <main className="page-x mx-auto w-full max-w-6xl pb-24">
         {/* useSearchParams needs a Suspense boundary in a static export. */}
-        <Suspense fallback={<div className="h-96" aria-busy="true" />}>
+        <Suspense fallback={<Loading label="Opening your book" />}>
           <View />
         </Suspense>
       </main>
@@ -36,7 +38,8 @@ function View() {
   const id = params.get("id") ?? "";
   const isNew = params.get("new") === "1";
   const router = useRouter();
-  const { ready, me, signIn, refresh } = useAuth();
+  const { ready, me, signIn, signingIn, refresh } = useAuth();
+  const [deleting, setDeleting] = useState(false);
   const [book, setBook] = useState<SavedBook | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
@@ -82,17 +85,22 @@ function View() {
     return () => clearInterval(t);
   }, [job?.busy, job?.id, load]);
 
-  if (!ready) return null;
+  if (!ready)
+    return (
+      <Loading label={signingIn ? "Signing you in" : "Opening your book"} />
+    );
   if (!me)
     return (
       <div className="max-w-xl">
         <p className="text-ink-soft">Sign in to open this book.</p>
-        <button
-          onClick={() => signIn()}
-          className="mt-5 rounded-full bg-saffron px-6 py-2.5 font-medium text-white hover:bg-[#f5b04f]"
+        <Button
+          className="mt-5"
+          onClick={() => signIn(`/books/view/?id=${id}`)}
+          loading={signingIn}
+          loadingText="Opening Google…"
         >
           Sign in with Google
-        </button>
+        </Button>
       </div>
     );
 
@@ -161,13 +169,23 @@ function View() {
               </p>
               <div className="mt-3 flex gap-3">
                 <button
+                  disabled={deleting}
+                  aria-busy={deleting || undefined}
                   onClick={async () => {
-                    await api.deleteBook(book.id);
-                    router.push("/books");
+                    setDeleting(true);
+                    try {
+                      await api.deleteBook(book.id);
+                      router.push("/books");
+                    } catch {
+                      setDeleting(false);
+                    }
                   }}
-                  className="rounded-full bg-danger px-5 py-2 font-medium text-white"
+                  className="inline-flex items-center gap-2 rounded-full bg-danger px-5 py-2 font-medium text-white disabled:opacity-70"
                 >
-                  Delete
+                  {deleting && (
+                    <span className="btn-spinner" aria-hidden="true" />
+                  )}
+                  {deleting ? "Deleting…" : "Delete"}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
@@ -180,7 +198,7 @@ function View() {
           )}
         </>
       ) : !error ? (
-        <div className="h-96" aria-busy="true" />
+        <Loading label="Opening your book" />
       ) : null}
     </>
   );

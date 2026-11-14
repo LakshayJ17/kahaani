@@ -91,7 +91,13 @@ export function ReadAlong() {
                 )}
               </>
             ) : (
-              <div className="aspect-[16/10] w-full" aria-busy="true" />
+              <div
+                className="flex aspect-[16/10] w-full items-center justify-center"
+                aria-busy="true"
+                aria-label="Loading the sample video"
+              >
+                <span className="btn-spinner text-[2rem] text-page/60" />
+              </div>
             )}
           </div>
           <div

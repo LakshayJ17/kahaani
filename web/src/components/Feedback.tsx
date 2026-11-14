@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import {
   FEEDBACK_TAGS,
   type Feedback as FeedbackValue,
@@ -102,8 +103,10 @@ export default function Feedback({
             ))}
           </div>
           <div className="mt-4 flex flex-wrap items-baseline gap-4">
-            <button
-              disabled={saving || (!dirty && !!initial)}
+            <Button
+              disabled={!dirty && !!initial}
+              loading={saving}
+              loadingText="Saving…"
               onClick={async () => {
                 setSaving(true);
                 try {
@@ -112,10 +115,10 @@ export default function Feedback({
                   setSaving(false);
                 }
               }}
-              className="rounded-full bg-saffron px-5 py-2 font-medium text-white hover:bg-[#f5b04f] disabled:opacity-40"
+              className="min-h-10"
             >
               {initial ? "Update" : "Save"}
-            </button>
+            </Button>
             {saved && (
               <p className="text-sm" role="status">
                 {saved.summary.length

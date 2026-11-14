@@ -33,13 +33,26 @@ export function Button({
   variant = "primary",
   icon,
   className = "",
+  loading = false,
+  loadingText,
   children,
+  disabled,
   ...props
-}: Common & ComponentProps<"button">) {
+}: Common &
+  ComponentProps<"button"> & {
+    /** Show a spinner, block clicks and, if given, swap the label. */
+    loading?: boolean;
+    loadingText?: ReactNode;
+  }) {
   return (
-    <button {...props} className={cls(variant, className)}>
-      {icon}
-      {children}
+    <button
+      {...props}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cls(variant, `${className} ${loading ? "!opacity-80" : ""}`)}
+    >
+      {loading ? <span className="btn-spinner" aria-hidden="true" /> : icon}
+      {loading && loadingText ? loadingText : children}
     </button>
   );
 }

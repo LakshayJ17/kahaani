@@ -36,7 +36,10 @@ export interface Child {
   id: string;
   name: string;
   age: number;
-  last: Pick<BriefInput, "hero" | "appearance" | "favourites" | "language" | "style" | "pages"> | null;
+  last: Pick<
+    BriefInput,
+    "hero" | "appearance" | "favourites" | "language" | "style" | "pages"
+  > | null;
   taste: Taste;
 }
 
@@ -132,7 +135,12 @@ export interface ShelfBook {
 }
 
 export interface Library {
-  children: { childName: string; childId: string; taste: Taste; books: ShelfBook[] }[];
+  children: {
+    childName: string;
+    childId: string;
+    taste: Taste;
+    books: ShelfBook[];
+  }[];
 }
 
 export interface Sample {
@@ -168,7 +176,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new RequestError(
-      { message: "Can't reach the server. Check your connection and try again." },
+      {
+        message: "Can't reach the server. Check your connection and try again.",
+      },
       0,
     );
   }
@@ -176,7 +186,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const detail: ApiError = body?.error ?? {
       message:
-        typeof body?.detail === "string" ? body.detail : "Something went wrong. Please try again.",
+        typeof body?.detail === "string"
+          ? body.detail
+          : "Something went wrong. Please try again.",
     };
     throw new RequestError(detail, res.status);
   }
@@ -190,7 +202,10 @@ const post = (body?: unknown): RequestInit => ({
 
 export const api = {
   create: (brief: BriefInput, fresh = false) =>
-    call<Job | { existingBookId: string; title: string }>("/api/books", post({ ...brief, fresh })),
+    call<Job | { existingBookId: string; title: string }>(
+      "/api/books",
+      post({ ...brief, fresh }),
+    ),
   job: (id: string) => call<Job>(`/api/jobs/${id}`),
   newHero: (id: string) => call<Job>(`/api/jobs/${id}/hero`, post()),
   approve: (id: string) => call<Job>(`/api/jobs/${id}/approve`, post()),
@@ -198,20 +213,33 @@ export const api = {
   library: () => call<Library>("/api/library"),
   book: (id: string) => call<SavedBook>(`/api/library/${id}`),
   progress: (id: string, page: number, finished = false) =>
-    call<{ ok: boolean }>(`/api/library/${id}/progress`, post({ page, finished })),
-  report: (id: string) => call<{ ok: boolean }>(`/api/library/${id}/report`, post()),
-  deleteBook: (id: string) => call<{ ok: boolean }>(`/api/library/${id}`, { method: "DELETE" }),
+    call<{ ok: boolean }>(
+      `/api/library/${id}/progress`,
+      post({ page, finished }),
+    ),
+  report: (id: string) =>
+    call<{ ok: boolean }>(`/api/library/${id}/report`, post()),
+  deleteBook: (id: string) =>
+    call<{ ok: boolean }>(`/api/library/${id}`, { method: "DELETE" }),
   redo: (id: string, page: number, request: string) =>
     call<Job>(`/api/library/${id}/pages/${page}/redo`, post({ request })),
 
   feedback: (id: string, fb: Feedback) =>
-    call<{ ok: boolean; taste: Taste }>(`/api/library/${id}/feedback`, post(fb)),
+    call<{ ok: boolean; taste: Taste }>(
+      `/api/library/${id}/feedback`,
+      post(fb),
+    ),
   children: () => call<Child[]>("/api/children"),
   forgetTaste: (childId: string) =>
-    call<{ ok: boolean }>(`/api/children/${childId}/taste`, { method: "DELETE" }),
+    call<{ ok: boolean }>(`/api/children/${childId}/taste`, {
+      method: "DELETE",
+    }),
 
   consent: () => call<{ ok: boolean }>("/api/me/consent", post()),
-  deleteAccount: () => call<{ ok: boolean; booksDeleted: number }>("/api/me", { method: "DELETE" }),
+  deleteAccount: () =>
+    call<{ ok: boolean; booksDeleted: number }>("/api/me", {
+      method: "DELETE",
+    }),
 
   samples: () => call<Sample[]>("/api/samples"),
 };

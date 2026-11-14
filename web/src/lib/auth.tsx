@@ -34,6 +34,8 @@ interface Config {
 interface AuthState {
   ready: boolean;
   me: Me | null;
+  /** True after "sign in" is clicked, while the browser heads to Google. */
+  signingIn: boolean;
   available: boolean; // false when sign-in isn't configured on this server
   /** Sign in, then land on `next` (the book studio by default). */
   signIn: (next?: string) => Promise<void>;
@@ -85,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [available, setAvailable] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
 
   const refresh = useCallback(async () => {
     const headers = await authHeaders();
@@ -97,6 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Back from Google with a sign-in code: say so while the session is set up.
+    const returning = new URLSearchParams(window.location.search).has("code");
+    if (returning) queueMicrotask(() => setSigningIn(true));
+    // Coming back with the browser's Back button instead of signing in.
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setSigningIn(false);
+    };
+    window.addEventListener("pageshow", onShow);
+
     let unsubscribe = () => {};
     loadConfig()
       .then(async (cfg) => {
@@ -110,20 +122,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await refresh();
       })
       .catch(() => setAvailable(false))
-      .finally(() => setReady(true));
-    return () => unsubscribe();
+      .finally(() => {
+        setReady(true);
+        setSigningIn(false);
+      });
+    return () => {
+      unsubscribe();
+      window.removeEventListener("pageshow", onShow);
+    };
   }, [refresh]);
 
   const signIn = useCallback(
     async (next: string = "/create/") => {
-      const cfg = await loadConfig();
+      setSigningIn(true);
+      const cfg = await loadConfig().catch(() => null);
+      if (!cfg) {
+        setSigningIn(false);
+        return;
+      }
       if (supabase) {
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: { redirectTo: `${window.location.origin}${next}` },
         });
+        // On success the page is leaving for Google, so keep showing the busy state.
+        if (error) setSigningIn(false);
         return;
       }
+      setSigningIn(false);
       if (cfg.devAuth) {
         const name = window
           .prompt("Development sign-in: type any name")
@@ -155,13 +181,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ready,
       me,
+      signingIn,
       available,
       signIn,
       signOut,
       refresh,
       headers: authHeaders,
     }),
-    [ready, me, available, signIn, signOut, refresh],
+    [ready, me, signingIn, available, signIn, signOut, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

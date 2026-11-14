@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -46,8 +47,10 @@ export default function Consent() {
           .
         </span>
       </label>
-      <button
-        disabled={!agreed || saving}
+      <Button
+        disabled={!agreed}
+        loading={saving}
+        loadingText="Saving…"
         onClick={async () => {
           setSaving(true);
           try {
@@ -57,10 +60,10 @@ export default function Consent() {
             setSaving(false);
           }
         }}
-        className="mt-6 rounded-full bg-saffron px-6 py-2.5 font-medium text-white hover:bg-[#f5b04f] disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-6"
       >
         Agree and continue
-      </button>
+      </Button>
     </div>
   );
 }

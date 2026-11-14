@@ -35,7 +35,7 @@ const MOOD_BG: Record<string, string> = {
 
 interface Props {
   book: SavedBook;
-  onRedo: (page: number, request: string) => void;
+  onRedo: (page: number, request: string) => Promise<void> | void;
   onPage?: (page: number, finished: boolean) => void;
   onReport?: () => void;
   onDelete?: () => void;
@@ -58,6 +58,7 @@ export default function BookReader({
   const [[index, direction], setPage] = useState<[number, number]>([start, 0]);
   const [editing, setEditing] = useState(false);
   const [request, setRequest] = useState("");
+  const [redoing, setRedoing] = useState(false);
   const [watching, setWatching] = useState(false);
   const [menu, setMenu] = useState(false);
   const finishedRef = useRef(false);
@@ -211,9 +212,14 @@ export default function BookReader({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              onRedo(page.number, request);
+              setRedoing(true);
+              try {
+                await onRedo(page.number, request);
+              } finally {
+                setRedoing(false);
+              }
               setEditing(false);
               setRequest("");
             }}
@@ -233,7 +239,13 @@ export default function BookReader({
                 className="mt-2 w-full rounded-xl border border-ink/15 bg-page px-3.5 py-2.5 focus:border-saffron-deep focus:outline-none"
               />
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Button type="submit">Rewrite page {page.number}</Button>
+                <Button
+                  type="submit"
+                  loading={redoing}
+                  loadingText="Checking your request…"
+                >
+                  Rewrite page {page.number}
+                </Button>
                 <Button
                   type="button"
                   variant="quiet"

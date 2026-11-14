@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Download, Play, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ButtonAnchor } from "@/components/ui/Button";
+import { Placeholder } from "@/components/ui/Loading";
 import { Reveal } from "@/components/ui/Reveal";
 import { api, url, type Sample } from "@/lib/api";
 
@@ -42,7 +43,18 @@ export function Bookshelf() {
         </p>
 
         {samples === null ? (
-          <div className="mt-10 h-72" aria-busy="true" />
+          <ul
+            className="mt-12 grid grid-cols-2 gap-x-6 gap-y-14 px-2 md:grid-cols-4"
+            aria-busy="true"
+            aria-label="Loading sample books"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <li key={i}>
+                <Placeholder className="aspect-square w-full" />
+                <Placeholder className="mt-4 h-5 w-3/4" />
+              </li>
+            ))}
+          </ul>
         ) : (
           <div className="mt-12">
             <ul className="grid grid-cols-2 items-end gap-x-6 gap-y-14 px-2 md:grid-cols-4 md:gap-y-0">

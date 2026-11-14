@@ -24,6 +24,8 @@ const AGES = [3, 4, 5, 6, 7, 8];
 
 interface Props {
   disabled: boolean;
+  /** The form has been sent and the server hasn't answered yet. */
+  sending?: boolean;
   fieldErrors: Record<string, string>;
   onSubmit: (brief: BriefInput) => void;
   kids?: Child[];
@@ -33,6 +35,7 @@ interface Props {
 
 export default function BriefForm({
   disabled,
+  sending = false,
   fieldErrors,
   onSubmit,
   kids = [],
@@ -352,7 +355,13 @@ export default function BriefForm({
         </Choice>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-          <Button type="submit">Write the story</Button>
+          <Button
+            type="submit"
+            loading={sending}
+            loadingText="Checking your details…"
+          >
+            Write the story
+          </Button>
           <p className="text-small text-ink-soft">
             You&rsquo;ll get a picture book (PDF) and a narrated read-along
             video.

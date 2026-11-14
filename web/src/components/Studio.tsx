@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Loading } from "@/components/ui/Loading";
 import {
   api,
   RequestError,
@@ -33,11 +34,15 @@ const STYLE_NAMES: Record<Style, string> = {
  * steps or the hero approval.
  */
 export default function Studio() {
-  const { ready, me, available, signIn } = useAuth();
+  const { ready, me, available, signIn, signingIn } = useAuth();
   const router = useRouter();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [sending, setSending] = useState(false);
+  // Which button started the current request, so only that one shows a spinner.
+  const [pending, setPending] = useState<
+    "create" | "fresh" | "approve" | "hero" | null
+  >(null);
   const [existing, setExisting] = useState<{
     id: string;
     title: string;
@@ -114,8 +119,9 @@ export default function Studio() {
       railRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const run = async (action: () => Promise<Job>) => {
+  const run = async (action: () => Promise<Job>, which: "approve" | "hero") => {
     setSending(true);
+    setPending(which);
     setError(null);
     try {
       const j = await action();
@@ -126,6 +132,7 @@ export default function Studio() {
       setError((e as RequestError).detail);
     } finally {
       setSending(false);
+      setPending(null);
     }
   };
 
@@ -133,6 +140,7 @@ export default function Studio() {
     setLastBrief(brief);
     setExisting(null);
     setSending(true);
+    setPending(fresh ? "fresh" : "create");
     setError(null);
     try {
       const res = await api.create(brief, fresh);
@@ -147,6 +155,7 @@ export default function Studio() {
       setError((e as RequestError).detail);
     } finally {
       setSending(false);
+      setPending(null);
     }
   };
 
@@ -301,7 +310,9 @@ export default function Studio() {
               exit={{ opacity: 0, y: -8 }}
             >
               {!ready ? (
-                <div className="h-96" aria-busy="true" />
+                <Loading
+                  label={signingIn ? "Signing you in" : "Getting things ready"}
+                />
               ) : !me ? (
                 <div className="rounded-2xl paper p-6">
                   <h2 className="text-lead font-normal">
@@ -312,7 +323,12 @@ export default function Studio() {
                     them again on any device and pick up where you left off.
                   </p>
                   {available ? (
-                    <Button className="mt-6" onClick={() => signIn()}>
+                    <Button
+                      className="mt-6"
+                      onClick={() => signIn()}
+                      loading={signingIn}
+                      loadingText="Opening Google…"
+                    >
                       Continue with Google
                     </Button>
                   ) : (
@@ -337,12 +353,15 @@ export default function Studio() {
                       onClick={() =>
                         router.push(`/books/view/?id=${existing.id}`)
                       }
+                      disabled={busy}
                     >
                       Open it
                     </Button>
                     <Button
                       variant="secondary"
                       onClick={() => lastBrief && create(lastBrief, true)}
+                      loading={pending === "fresh"}
+                      loadingText="Starting…"
                     >
                       Write a new version
                     </Button>
@@ -368,15 +387,19 @@ export default function Studio() {
                   </p>
                   <div className="mt-6 flex flex-col gap-3">
                     <Button
-                      onClick={() => run(() => api.approve(job.id))}
+                      onClick={() => run(() => api.approve(job.id), "approve")}
                       disabled={busy}
+                      loading={pending === "approve"}
+                      loadingText="Starting the pages…"
                     >
                       Yes, draw the pages
                     </Button>
                     <Button
                       variant="secondary"
-                      onClick={() => run(() => api.newHero(job.id))}
+                      onClick={() => run(() => api.newHero(job.id), "hero")}
                       disabled={busy}
+                      loading={pending === "hero"}
+                      loadingText="Drawing…"
                       icon={<RefreshCw className="size-4" strokeWidth={1.5} />}
                     >
                       Another picture
@@ -396,6 +419,7 @@ export default function Studio() {
                   </p>
                   <BriefForm
                     disabled={busy}
+                    sending={pending === "create"}
                     fieldErrors={fields}
                     onSubmit={(b) => create(b)}
                     onStyleChange={setStyle}

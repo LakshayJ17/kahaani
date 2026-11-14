@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Wordmark } from "./Logo";
 
 export function SiteHeader() {
-  const { ready, me, available, signIn, signOut } = useAuth();
+  const { ready, me, available, signIn, signOut, signingIn } = useAuth();
   const link = "rounded-lg px-3 py-2 font-medium hover:bg-sand/70";
   return (
     <nav
@@ -41,8 +41,16 @@ export function SiteHeader() {
                 Sign out
               </button>
             ) : (
-              <button onClick={() => signIn()} className={link}>
-                Sign in
+              <button
+                onClick={() => signIn()}
+                disabled={signingIn}
+                aria-busy={signingIn || undefined}
+                className={`${link} inline-flex items-center gap-2`}
+              >
+                {signingIn && (
+                  <span className="btn-spinner" aria-hidden="true" />
+                )}
+                {signingIn ? "Signing in…" : "Sign in"}
               </button>
             )}
           </li>
