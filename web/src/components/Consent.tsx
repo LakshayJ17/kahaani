@@ -10,19 +10,20 @@ export default function Consent() {
   const [saving, setSaving] = useState(false);
 
   return (
-    <div className="max-w-2xl rounded-sm border border-line bg-sheet p-6 sm:p-8">
-      <h3 className="text-2xl text-indigo">Before your first book</h3>
+    <div className="max-w-2xl rounded-xl border border-ink/15 bg-page p-6 sm:p-8">
+      <h3 className="text-2xl text-ink">Before your first book</h3>
       <div className="mt-4 space-y-3 text-ink-soft">
         <p>
-          Kahaani saves the books you make to your library: the story, the pictures and the
-          narration. Only you can open them. You can delete a book, or your whole account and
-          everything in it, at any time.
+          Kahaani saves the books you make to your library: the story, the
+          pictures and the narration. Only you can open them. You can delete a
+          book, or your whole account and everything in it, at any time.
         </p>
         <p>
-          To make books faster for everyone, a copy of each new story is kept with the
-          child&rsquo;s name removed. Another family asking for a very similar story may get it,
-          with their own child&rsquo;s name. The pictures are always fictional drawings made from
-          the words you type; no photos are ever used.
+          To make books faster for everyone, a copy of each new story is kept
+          with the child&rsquo;s name removed. Another family asking for a very
+          similar story may get it, with their own child&rsquo;s name. The
+          pictures are always fictional drawings made from the words you type;
+          no photos are ever used.
         </p>
       </div>
       <label className="mt-6 flex items-start gap-3">
@@ -30,12 +31,16 @@ export default function Consent() {
           type="checkbox"
           checked={agreed}
           onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-1.5 h-4 w-4 accent-indigo"
+          className="mt-1.5 h-4 w-4 accent-[var(--saffron-deep)]"
         />
         <span>
-          I am the parent or guardian, and I agree that Kahaani stores my books as described
-          above and in the{" "}
-          <a href="/privacy/" target="_blank" className="text-indigo underline underline-offset-4">
+          I am the parent or guardian, and I agree that Kahaani stores my books
+          as described above and in the{" "}
+          <a
+            href="/privacy/"
+            target="_blank"
+            className="text-ink underline underline-offset-4"
+          >
             privacy policy
           </a>
           .
@@ -52,7 +57,7 @@ export default function Consent() {
             setSaving(false);
           }
         }}
-        className="mt-6 rounded-full bg-indigo px-6 py-2.5 font-medium text-white hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-6 rounded-full bg-saffron px-6 py-2.5 font-medium text-white hover:bg-[#f5b04f] disabled:cursor-not-allowed disabled:opacity-40"
       >
         Agree and continue
       </button>

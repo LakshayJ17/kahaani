@@ -14,6 +14,12 @@ For each image decide:
   cartoon or folk-art stylisation is fine.
 - matches_scene: false only if the picture clearly shows something different from what it is
   meant to show (wrong setting or action, main child missing). Small differences are fine.
+- respectful: false if anything could hurt or offend a family: a caricature or stereotyped
+  depiction of any religion, caste, community, region or body type; religious symbols used
+  carelessly or mockingly; or the main child drawn with a clearly lighter (or darker) skin
+  tone than described. Ordinary clothing such as a headscarf, turban, bindi or kurta drawn
+  naturally is respectful.
 
 Return JSON: {"images": [{"index": 0, "safe": true, "has_text": false, "malformed": false,
-"matches_scene": true, "reason": "..."}, ...]} with one entry per image.
+"matches_scene": true, "respectful": true, "reason": "..."}, ...]} with one entry per
+image.

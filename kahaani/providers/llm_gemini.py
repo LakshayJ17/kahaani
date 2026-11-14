@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from kahaani.cache import DiskCache
-from kahaani.providers.errors import ProviderError, TransientError
+from kahaani.providers.errors import ContentBlocked, ProviderError, TransientError
 from kahaani.providers.llm_base import LLM, parse_json_object
 
 
@@ -83,5 +83,6 @@ class GeminiLLM(LLM):
             raise TransientError(f"gemini {type(e).__name__}") from e
 
         if not resp.text:
-            raise ProviderError("gemini returned no text (possibly safety-blocked)")
+            # No text back almost always means Gemini's own safety filter refused.
+            raise ContentBlocked("gemini refused the content (its safety filter)")
         return parse_json_object(resp.text)

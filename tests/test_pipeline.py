@@ -164,6 +164,7 @@ def _image_verdicts(rounds):
                     "has_text": t,
                     "malformed": m,
                     "matches_scene": True,
+                    "respectful": True,
                     "reason": "",
                 }
                 for i, (s, t, m) in enumerate(flags)

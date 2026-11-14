@@ -13,5 +13,9 @@ class TransientError(ProviderError):
         self.retry_after = retry_after
 
 
+class ContentBlocked(ProviderError):
+    """The model refused because its own safety filter fired on the text we sent."""
+
+
 class QuotaExhausted(ProviderError):
     """Rate limited for longer than is worth waiting (e.g. a daily quota)."""

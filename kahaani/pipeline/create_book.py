@@ -23,7 +23,7 @@ from pydantic import ValidationError
 
 from kahaani.config import Settings, get_settings
 from kahaani.pipeline import assembler, narrator, planner, reviewer, safety
-from kahaani.pipeline.illustrator import Illustrator
+from kahaani.pipeline.illustrator import Illustrator, character_prompt
 from kahaani.pipeline.reviewer import QualityReport
 from kahaani.providers.errors import ProviderError
 from kahaani.providers.image_base import ImageGen
@@ -91,6 +91,11 @@ class _Timer:
         took = time.perf_counter() - self.start
         self.timings[self.name] = round(self.timings.get(self.name, 0) + took, 2)
         log.info("stage=%s secs=%.1f", self.name, took)
+
+
+def _describe(story: Story, page: Page) -> str:
+    """What a page picture should show, including how the hero was described."""
+    return f"{page.scene} (the main child: {character_prompt(story)})"
 
 
 class BookMaker:
@@ -351,7 +356,9 @@ class BookMaker:
         )
 
         # 2. Vision check: safe, no writing, no distortion, matches the page.
-        descriptions = ["the hero's reference portrait"] + [p.scene for p in story.pages]
+        descriptions = [f"the hero's reference portrait: {character_prompt(story)}"] + [
+            _describe(story, p) for p in story.pages
+        ]
         checks = safety.check_images([draft.hero, *images], self.vision, descriptions)
         if checks is None:
             if self.settings.require_image_check:
@@ -375,7 +382,7 @@ class BookMaker:
             log.info("redrawing %d pages after image check", len(bad))
             redrawn = {i: self._redraw(draft, story, i) for i in bad}
             second = safety.check_images(
-                list(redrawn.values()), self.vision, [story.pages[i].scene for i in redrawn]
+                list(redrawn.values()), self.vision, [descriptions[i + 1] for i in redrawn]
             )
             for n, (i, img) in enumerate(redrawn.items()):
                 check = second[n] if second else None
@@ -403,6 +410,7 @@ class BookMaker:
         record("Pictures are safe for children", [i for i, c in enumerate(first) if not c.safe])
         record("No writing in the pictures", [i for i, c in enumerate(first) if c.has_text])
         record("No distorted bodies or faces", [i for i, c in enumerate(first) if c.malformed])
+        record("Pictures are respectful", [i for i, c in enumerate(first) if not c.respectful])
         record("Pictures match the story", [i for i, c in enumerate(first) if not c.matches_scene])
         return images, warnings
 
@@ -462,11 +470,12 @@ class BookMaker:
                 book.brief, story, new_page, hero=book.hero, variant=book.hero_variant
             )
         )
-        checks = safety.check_images([image], self.vision, [new_page.scene])
+        described = [_describe(story, new_page)]
+        checks = safety.check_images([image], self.vision, described)
         if reviewer.image_problem(image) or (checks and not checks[0].ok):
             image = self._redraw(book, story, number - 1)
             if reviewer.image_problem(image) or (
-                (again := safety.check_images([image], self.vision, [new_page.scene]))
+                (again := safety.check_images([image], self.vision, described))
                 and not again[0].safe
             ):
                 image = book.hero

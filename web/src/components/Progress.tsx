@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import type { Job } from "@/lib/api";
 
 // The steps each action goes through, matching the messages the API reports.
@@ -29,6 +30,11 @@ const STEPS: Record<NonNullable<Job["action"]>, string[]> = {
   ],
 };
 
+const LABEL: Record<string, string> = {
+  "Drawing page": "Drawing the pages",
+  "Rewriting page": "Rewriting the page",
+};
+
 export default function Progress({ job }: { job: Job }) {
   const steps = job.action ? STEPS[job.action] : [];
   const current = steps.findIndex((s) => job.step.startsWith(s));
@@ -36,51 +42,68 @@ export default function Progress({ job }: { job: Job }) {
 
   return (
     <div aria-live="polite">
-      <p className="font-display text-2xl text-indigo">
+      <p className="text-lead">
         {waiting ? "Waiting for a free spot" : job.step || "Starting"}
       </p>
-      <p className="mt-1 text-ink-soft">
+      <p className="mt-1 text-body text-ink-soft">
         {waiting
           ? `${job.queuePosition} ${job.queuePosition === 1 ? "book is" : "books are"} being made ahead of yours.`
-          : "This usually takes under a minute. You can stay on this page."}
+          : "This usually takes about a minute. You can stay on this page."}
       </p>
 
       <div
-        className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-line"
+        className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-sand"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(job.progress * 100)}
       >
         <div
-          className="h-full rounded-full bg-marigold transition-[width] duration-500 ease-out"
+          className="h-full rounded-full bg-saffron transition-[width] duration-500 ease-out"
           style={{ width: `${Math.max(4, job.progress * 100)}%` }}
         />
       </div>
 
       {steps.length > 1 && (
-        <ol className="mt-6 space-y-2">
+        <ol className="mt-6 space-y-3">
           {steps.map((s, i) => {
-            const state = current < 0 ? "todo" : i < current ? "done" : i === current ? "now" : "todo";
+            const state =
+              current < 0
+                ? "todo"
+                : i < current
+                  ? "done"
+                  : i === current
+                    ? "now"
+                    : "todo";
             return (
-              <li key={s} className="flex items-baseline gap-3">
+              <li key={s} className="flex items-center gap-3">
                 <span
-                  className={`w-5 text-right text-sm tabular-nums ${
-                    state === "todo" ? "text-ink-soft/50" : "text-indigo"
+                  aria-hidden="true"
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-small ${
+                    state === "done"
+                      ? "bg-success text-page"
+                      : state === "now"
+                        ? "bg-saffron text-ink"
+                        : "bg-sand text-ink-soft"
                   }`}
                 >
-                  {i + 1}
+                  {state === "done" ? (
+                    <Check className="size-3.5" strokeWidth={2.5} />
+                  ) : (
+                    i + 1
+                  )}
                 </span>
                 <span
                   className={
-                    state === "now"
-                      ? "font-medium text-ink"
-                      : state === "done"
-                        ? "text-ink-soft line-through decoration-line"
-                        : "text-ink-soft/60"
+                    state === "todo"
+                      ? "text-ink-soft"
+                      : state === "now"
+                        ? "font-medium"
+                        : ""
                   }
                 >
-                  {state === "now" ? job.step : s.replace(/ page$/, " the pages")}
+                  {state === "now" ? job.step : (LABEL[s] ?? s)}
+                  {state === "done" && <span className="sr-only"> (done)</span>}
                 </span>
               </li>
             );

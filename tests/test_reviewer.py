@@ -18,6 +18,8 @@ GOOD = {
     "coherent": True,
     "double_meaning": False,
     "abusive_or_unsafe": False,
+    "offensive_or_stereotyped": False,
+    "respect_notes": [],
     "age_appropriate": True,
     "text_matches_scenes": True,
     "summary": "fine",
@@ -66,6 +68,11 @@ def test_grammar_fix_that_breaks_rules_is_not_used():
     [
         ({"abusive_or_unsafe": True}, "reject", "Kind and safe words"),
         ({"double_meaning": True}, "rewrite", "No double meanings"),
+        (
+            {"offensive_or_stereotyped": True, "respect_notes": ["fair skin called prettier"]},
+            "rewrite",
+            "Respectful to every family",
+        ),
         ({"coherent": False}, "rewrite", "Makes sense"),
         ({"age_appropriate": False}, "rewrite", "Right for the age"),
     ],
@@ -204,3 +211,42 @@ def test_api_shows_the_quality_report(env):
 
 def test_brief_type_is_used():
     assert isinstance(brief(), Brief)
+
+
+@pytest.mark.parametrize("word", ["beef", "pork", "bacon", "गोमांस"])
+def test_offensive_foods_are_blocked_in_stories(word):
+    from kahaani.pipeline.safety import check_story
+
+    d = story_dict()
+    d["pages"][1]["text"] = f"Meera ate some {word} for lunch."
+    assert not check_story(Story.model_validate(d), None).ok
+
+
+def test_writer_is_told_to_respect_every_family():
+    from kahaani.pipeline.planner import build_prompt
+
+    system, _ = build_prompt(brief())
+    for phrase in ("religions, castes", "fair skin", "beef, pork", "boys and girls"):
+        assert phrase in system
+
+
+def test_disrespectful_picture_is_redrawn():
+    from tests.test_pipeline import _image_verdicts
+
+    ok = (True, False, False)
+    base = _image_verdicts([[ok] * 5, [ok]])
+
+    def verdict(prompt, images):
+        out = base(prompt, images)
+        if len(images) == 5:  # first pass: page 2 drew the hero with lighter skin
+            out["images"][2]["respectful"] = False
+        assert "the main child:" in prompt  # the hero's description is given to the checker
+        return out
+
+    llm = SchemaFakeLLM(overrides={"_ImagesVerdict": verdict})
+    m = maker(llm)
+    draft = m.start(brief())
+    book = m.finish(draft)
+    status = {c.name: c.status for c in book.quality.checks}
+    assert status["Pictures are respectful"] == "fixed"
+    assert book.pages[1] != draft.hero

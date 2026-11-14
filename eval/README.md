@@ -14,6 +14,8 @@ group: `uv sync --group eval`, or prefix commands with `uv run --group eval`.
 | `story_judge.py` | LLM-as-judge rubric over the stories | 1 LLM call per story |
 | `consistency.py` | character-consistency experiment (4 setups) | images + 1 vision call per page |
 | `quality_review.py` | runs the quality reviewer over the stories → `out/quality_review.jsonl` | 1 LLM call per story |
+| `request_probes.py` | 28 offensive, manipulative and ordinary requests (form and page changes) through the input checks | 1 LLM call per request |
+| `respect_review.py` | 28 respect probes (offensive passages and inclusive controls) through the reviewer | 1 LLM call per probe |
 | `report.py` | `out/report.md` + `out/charts/*.png` from whatever exists | 0 |
 | `results.ipynb` | runs `report.py` and shows tables and charts | 0 |
 

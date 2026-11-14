@@ -8,8 +8,7 @@ Runs after the safety checks, as a second pair of eyes:
 - pictures are checked in code for broken, tiny, blank or flat images (the vision model
   separately checks safety, distortion and scene match, see safety.check_images).
 
-Every check is recorded in a QualityReport, which travels with the book and is shown to the
-parent as "How this book was checked".
+Every check is recorded in a QualityReport, which is saved with the book.
 """
 
 import io
@@ -26,6 +25,7 @@ from pydantic import BaseModel
 
 from kahaani.pipeline import planner
 from kahaani.pipeline.safety import STORY_BLOCKED_RE
+from kahaani.providers.errors import ContentBlocked
 from kahaani.providers.llm_base import LLM
 from kahaani.schemas import Brief, Story
 
@@ -75,6 +75,8 @@ class _StoryReview(BaseModel):
     coherent: bool
     double_meaning: bool
     abusive_or_unsafe: bool
+    offensive_or_stereotyped: bool
+    respect_notes: list[str]
     age_appropriate: bool
     text_matches_scenes: bool
     summary: str
@@ -156,12 +158,18 @@ def review_story(story: Story, brief: Brief, llm: LLM | None) -> StoryVerdict:
         lesson=brief.lesson_text,
         story_json=json.dumps(data, ensure_ascii=False, indent=1).replace("<", "\\u003c"),
     )
-    review = _StoryReview.model_validate(llm.generate_json(prompt, _StoryReview, temperature=0.0))
+    try:
+        raw = llm.generate_json(prompt, _StoryReview, temperature=0.0)
+    except ContentBlocked:
+        report.add("Kind and safe words", "flagged", "refused by the model's safety filter")
+        return StoryVerdict(story, "reject", report, "refused by the safety filter")
+    review = _StoryReview.model_validate(raw)
     log.info(
-        "review coherent=%s double=%s unsafe=%s age=%s grammar_issues=%d",
+        "review coherent=%s double=%s unsafe=%s offensive=%s age=%s grammar_issues=%d",
         review.coherent,
         review.double_meaning,
         review.abusive_or_unsafe,
+        review.offensive_or_stereotyped,
         review.age_appropriate,
         sum(not r.grammar_ok for r in review.pages),
     )
@@ -170,6 +178,12 @@ def review_story(story: Story, brief: Brief, llm: LLM | None) -> StoryVerdict:
         report.add("Kind and safe words", "flagged", review.summary)
         return StoryVerdict(story, "reject", report, "unsafe or abusive content")
     report.add("Kind and safe words", "passed")
+
+    if review.offensive_or_stereotyped:
+        detail = "; ".join(review.respect_notes) or review.summary
+        report.add("Respectful to every family", "flagged", detail)
+        return StoryVerdict(story, "rewrite", report, "something that could hurt or offend")
+    report.add("Respectful to every family", "passed")
 
     if review.double_meaning:
         report.add("No double meanings", "flagged", review.summary)

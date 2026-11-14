@@ -4,21 +4,29 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import BookReader from "@/components/BookReader";
-import Header from "@/components/Header";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import Progress from "@/components/Progress";
-import { api, RequestError, type ApiError, type Job, type SavedBook } from "@/lib/api";
+import {
+  api,
+  RequestError,
+  type ApiError,
+  type Job,
+  type SavedBook,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function ViewPage() {
   return (
     <>
-      <Header />
-      <main className="mx-auto max-w-4xl px-5 pb-20 sm:px-8">
+      <SiteHeader />
+      <main className="page-x mx-auto w-full max-w-6xl pb-24">
         {/* useSearchParams needs a Suspense boundary in a static export. */}
         <Suspense fallback={<div className="h-96" aria-busy="true" />}>
           <View />
         </Suspense>
       </main>
+      <SiteFooter />
     </>
   );
 }
@@ -80,8 +88,8 @@ function View() {
       <div className="max-w-xl">
         <p className="text-ink-soft">Sign in to open this book.</p>
         <button
-          onClick={signIn}
-          className="mt-5 rounded-full bg-indigo px-6 py-2.5 font-medium text-white hover:bg-indigo-deep"
+          onClick={() => signIn()}
+          className="mt-5 rounded-full bg-saffron px-6 py-2.5 font-medium text-white hover:bg-[#f5b04f]"
         >
           Sign in with Google
         </button>
@@ -91,17 +99,23 @@ function View() {
   return (
     <>
       <p className="mb-6 text-sm">
-        <Link href="/books" className="text-indigo underline decoration-indigo/30 underline-offset-4">
+        <Link
+          href="/books"
+          className="text-ink underline decoration-ink/30 underline-offset-4"
+        >
           Back to your library
         </Link>
       </p>
       {isNew && book && !job && (
-        <p className="mb-6 rounded-sm bg-mood-calm px-4 py-3">
+        <p className="mb-6 rounded-xl bg-mood-calm px-4 py-3">
           Your book is ready and saved to your library.
         </p>
       )}
       {error && (
-        <div role="alert" className="mb-6 border-l-4 border-alert bg-sheet px-5 py-4">
+        <div
+          role="alert"
+          className="mb-6 border-l-4 border-danger bg-page px-5 py-4"
+        >
           <p className="font-medium">{error.message}</p>
           {error.reasons?.map((r) => (
             <p key={r} className="mt-1 text-ink-soft">
@@ -141,15 +155,17 @@ function View() {
             }}
           />
           {confirmDelete && (
-            <div className="mt-6 border-l-4 border-alert bg-sheet px-5 py-4">
-              <p className="font-medium">Delete this book? This can&rsquo;t be undone.</p>
+            <div className="mt-6 border-l-4 border-danger bg-page px-5 py-4">
+              <p className="font-medium">
+                Delete this book? This can&rsquo;t be undone.
+              </p>
               <div className="mt-3 flex gap-3">
                 <button
                   onClick={async () => {
                     await api.deleteBook(book.id);
                     router.push("/books");
                   }}
-                  className="rounded-full bg-alert px-5 py-2 font-medium text-white"
+                  className="rounded-full bg-danger px-5 py-2 font-medium text-white"
                 >
                   Delete
                 </button>

@@ -19,7 +19,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from kahaani.providers.errors import ProviderError
+from kahaani.providers.errors import ContentBlocked, ProviderError
 from kahaani.providers.llm_base import LLM
 from kahaani.schemas import Brief, Story
 
@@ -252,6 +252,7 @@ class _ImageVerdict(BaseModel):
     has_text: bool
     malformed: bool
     matches_scene: bool
+    respectful: bool
     reason: str
 
 
@@ -266,10 +267,19 @@ class ImageCheck:
     reason: str = ""
     malformed: bool = False  # distorted faces or bodies, extra limbs, melted shapes
     matches_scene: bool = True
+    # No caricatures or stereotypes, symbols used with respect, and the hero's skin tone as
+    # described (image models often draw children lighter than the parent described).
+    respectful: bool = True
 
     @property
     def ok(self) -> bool:
-        return self.safe and not self.has_text and not self.malformed and self.matches_scene
+        return (
+            self.safe
+            and not self.has_text
+            and not self.malformed
+            and self.matches_scene
+            and self.respectful
+        )
 
 
 def _word_regex(words: list[str]) -> re.Pattern:
@@ -309,6 +319,11 @@ STORY_BLOCKED_WORDS = [
     "drunk",
     "cigarette",
     "drugs",
+    # Foods that offend many Indian families.
+    "beef",
+    "pork",
+    "bacon",
+    "गोमांस",
     "खून",
     "चाकू",
     "बंदूक",
@@ -389,7 +404,10 @@ def _template(name: str) -> Template:
 def _llm_text_check(llm: LLM, data: dict, context: str) -> _Verdict:
     payload = json.dumps(data, ensure_ascii=False, indent=2).replace("<", "\\u003c")
     prompt = _template("safety_text.txt").substitute(input_json=payload, context=context)
-    raw = llm.generate_json(prompt, _Verdict, temperature=0.0)
+    try:
+        raw = llm.generate_json(prompt, _Verdict, temperature=0.0)
+    except ContentBlocked:
+        return _Verdict(safe=False, reason="refused by the model's safety filter")
     return _Verdict.model_validate(raw)
 
 
@@ -412,7 +430,16 @@ def _llm_input_check(llm: LLM, data: dict, context: str) -> _InputVerdict:
     data = {k: normalise(v) for k, v in data.items()}
     payload = json.dumps(data, ensure_ascii=False, indent=2).replace("<", "\\u003c")
     prompt = _template("safety_input.txt").substitute(input_json=payload, context=context)
-    raw = llm.generate_json(prompt, _InputVerdict, temperature=0.0)
+    try:
+        raw = llm.generate_json(prompt, _InputVerdict, temperature=0.0)
+    except ContentBlocked:
+        # The model's own safety filter refused even to read it: treat as harmful.
+        return _InputVerdict(
+            intent="harmful",
+            injection_attempt=False,
+            safe=False,
+            reason="refused by the model's safety filter",
+        )
     return _InputVerdict.model_validate(raw)
 
 
@@ -437,8 +464,23 @@ def check_brief(brief: Brief, llm: LLM | None) -> SafetyResult:
     return SafetyResult(True, checked_by_llm=True)
 
 
+# Asking to change how a child looks (in a page-change request) is never allowed. "Fair skin"
+# is a normal description in the form, so these only apply to change requests.
+LOOKS_CHANGE_RE = re.compile(
+    r"\b(fairer|lighter|whiter|paler|thinner|slimmer|skinnier|less dark|not so dark|"
+    r"prettier|more beautiful|more handsome)\b|"
+    r"\b(make|turn|draw)\b[^.]{0,30}\b(fair|white|light[- ]skinned|thin|slim|skinny)\b|"
+    r"गोरा|गोरी|गोरे|पतला|पतली|सुंदर बना",
+    re.IGNORECASE,
+)
+
+
 def check_instruction(text: str, llm: LLM | None) -> SafetyResult:
     """A parent's 'redo this page' request."""
+    if LOOKS_CHANGE_RE.search(normalise(text)):
+        return SafetyResult(
+            False, ["We don't change how a child looks. Every child is drawn as described."]
+        )
     reasons = check_text_rules({"custom_lesson": text})
     if reasons:
         return SafetyResult(False, ["That request can't be used. Please rephrase it."])
@@ -495,5 +537,7 @@ def check_images(
         if v is None:  # the model skipped it: be strict and ask for a redraw
             out.append(ImageCheck(True, True, "no verdict"))
         else:
-            out.append(ImageCheck(v.safe, v.has_text, v.reason, v.malformed, v.matches_scene))
+            out.append(
+                ImageCheck(v.safe, v.has_text, v.reason, v.malformed, v.matches_scene, v.respectful)
+            )
     return out

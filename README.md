@@ -24,8 +24,7 @@ their child as the hero, as a PDF book and a read-along video.
   "too long", "too hard") shape the next story for that child.
 - **Faster books through sharing.** Anonymous copies of finished stories (no names) are
   reused when another family asks for a matching idea.
-- **Layered safety and quality checks** on every request, story and picture, shown to the
-  parent under each book.
+- **Layered safety and quality checks** on every request, story and picture.
 
 ## How it works
 
@@ -204,11 +203,19 @@ Dockerfile          Container for the website and API
   on every request, files are served through expiring signed links, and data lives in a
   private database schema. Shared stories never contain a child's name.
 - **Input checks.** Length limits, a fixed lesson list, Unicode normalisation, blocklists in
-  English, Hindi and Hinglish, and an AI classifier for intent and prompt injection.
+  English, Hindi and Hinglish, and an AI classifier for intent and prompt injection. The same
+  checks apply to "change this page" requests, which also may never change how a child looks
+  (fairer, thinner, prettier). If an AI model's own safety filter refuses a request, it is
+  treated as blocked.
+- **Respect for every family.** Stories never compare religions, castes, regions or
+  languages, use gender stereotypes, comment on skin colour, weight or looks, treat a
+  disability as something to pity, mention beef, pork or alcohol, shame anyone for being
+  poor, or show harsh adults. The writer is told this, the AI editor checks for it, and the
+  picture check flags caricatures, careless use of religious symbols, and a hero drawn with a
+  different skin tone from the one described.
 - **Output checks.** A story safety check and an AI quality review run before any picture is
   drawn. Generated text is checked for leaked instructions, every picture is checked for
   safety, stray text and distortion, and flagged pictures are redrawn or replaced.
-- **Transparency.** Each book lists the checks it passed.
 - **Limits.** Daily per-account and site-wide limits, and a cap on saved books per account.
 - **Minimal logging.** Logs record timings and error types, never names or story text.
 
@@ -221,6 +228,8 @@ review; see [eval/README.md](eval/README.md) for each script.
 |---|---|
 | Character consistency (vision judge, 1–5) | 5.0 with reference images, 4.8 with a fixed prompt, 3.2 baseline |
 | Safety suite (61 cases) | 50 of 50 unsafe requests blocked; 0 of 11 safe requests wrongly blocked |
+| Respect probes (28 cases, English and Hindi) | 18 of 18 offensive passages stopped; 10 of 10 inclusive controls shown |
+| Request probes (28 form and page-change requests) | 18 of 18 offensive or manipulative requests blocked; 10 of 10 ordinary ones allowed |
 | Story generation (30 briefs, Hindi and English) | 30 of 30 valid stories |
 | Story quality (LLM judge, 1–5) | 4.4 to 5.0 across all five criteria |
 | Quality review (30 stories) | 28 approved (7 after automatic grammar fixes), 2 rewritten |

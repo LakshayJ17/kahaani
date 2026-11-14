@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from kahaani.cache import DiskCache
 from kahaani.config import Settings, get_settings
-from kahaani.providers.errors import ProviderError, QuotaExhausted
+from kahaani.providers.errors import ContentBlocked, ProviderError, QuotaExhausted
 from kahaani.providers.llm_base import LLM
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ class FallbackLLM(LLM):
 
     def generate_json(self, prompt, schema, *, system=None, temperature=0.8, images=None):
         errors: list[str] = []
+        blocked = 0
         for provider in self._healthy():
             if images and not provider.supports_images:
                 continue
@@ -49,6 +50,11 @@ class FallbackLLM(LLM):
                 result = provider.generate_json(
                     prompt, schema, system=system, temperature=temperature, images=images
                 )
+            except ContentBlocked as e:
+                # Don't rest the provider: it works, it just refused this text.
+                blocked += 1
+                errors.append(f"{provider.name}/{provider.model}: {e}")
+                continue
             except ProviderError as e:
                 label = f"{provider.name}/{provider.model}"
                 cooldown = QUOTA_COOLDOWN if isinstance(e, QuotaExhausted) else FAIL_COOLDOWN
@@ -58,6 +64,9 @@ class FallbackLLM(LLM):
                 continue
             self.last_used = f"{provider.name}/{provider.model}"
             return result
+        if blocked and blocked == len(errors):
+            # Every model that answered refused on safety grounds: that's a verdict, not an outage.
+            raise ContentBlocked("refused by every model's safety filter")
         raise ProviderError("all LLM providers failed: " + ("; ".join(errors) or "none usable"))
 
     def _generate_json(

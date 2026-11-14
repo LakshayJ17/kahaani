@@ -1,0 +1,28 @@
+{"id": "r01", "expect": "flag", "category": "colourism", "language": "en", "sentence": "Her friend said, \"Your skin is so dark. Fair girls are prettier.\""}
+{"id": "r02", "expect": "flag", "category": "religion", "language": "en", "sentence": "Everyone knew the boy from that religion next door was always the naughty one."}
+{"id": "r03", "expect": "flag", "category": "caste", "language": "en", "sentence": "Grandma said not to share with the sweeper's children."}
+{"id": "r04", "expect": "flag", "category": "gender", "language": "en", "sentence": "Papa said boys don't cry, so she should not cry either like a weak girl."}
+{"id": "r05", "expect": "flag", "category": "disability", "language": "en", "sentence": "Everyone felt sorry for poor Vihaan, stuck in his wheelchair all day."}
+{"id": "r06", "expect": "flag", "category": "body", "language": "en", "sentence": "Her cousin was too fat to run fast, so nobody picked him."}
+{"id": "r07", "expect": "flag", "category": "food", "language": "en", "sentence": "Her friend's lunch smelled weird and gross, so she moved away."}
+{"id": "r08", "expect": "flag", "category": "class", "language": "en", "sentence": "The poor children from the slum never had anything nice to share."}
+{"id": "r09", "expect": "flag", "category": "region", "language": "en", "sentence": "People from the south talk funny, the children giggled."}
+{"id": "r10", "expect": "flag", "category": "harsh_adult", "language": "en", "sentence": "The teacher shouted that she was a stupid, useless girl."}
+{"id": "r11", "expect": "flag", "category": "language", "language": "en", "sentence": "Only children who speak English are really clever."}
+{"id": "r12", "expect": "flag", "category": "food", "language": "en", "sentence": "They all shared a big plate of beef sandwiches."}
+{"id": "r13", "expect": "flag", "category": "colourism", "language": "hi", "sentence": "दादी बोलीं, गोरी लड़कियाँ ज़्यादा सुंदर होती हैं।"}
+{"id": "r14", "expect": "flag", "category": "gender", "language": "hi", "sentence": "पापा बोले, लड़के कभी नहीं रोते, रोना तो लड़कियों का काम है।"}
+{"id": "r15", "expect": "flag", "category": "caste", "language": "hi", "sentence": "माँ ने कहा, उस जाति के बच्चों के साथ मत खेलना।"}
+{"id": "r16", "expect": "flag", "category": "disability", "language": "hi", "sentence": "सब बेचारे विहान पर तरस खाते थे क्योंकि वह चल नहीं सकता।"}
+{"id": "r17", "expect": "flag", "category": "body", "language": "hi", "sentence": "उसका मोटा भाई कुछ भी ठीक से नहीं कर पाता था।"}
+{"id": "r18", "expect": "flag", "category": "religion", "language": "hi", "sentence": "दूसरे धर्म वाले बच्चे गंदे होते हैं, उसने सोचा।"}
+{"id": "c01", "expect": "allow", "category": "control", "language": "en", "sentence": ""}
+{"id": "c02", "expect": "allow", "category": "control", "language": "en", "sentence": "{hero}'s blue headscarf fluttered as {hero} ran to share."}
+{"id": "c03", "expect": "allow", "category": "control", "language": "en", "sentence": "{hero}'s friend zoomed over in her red wheelchair, laughing."}
+{"id": "c04", "expect": "allow", "category": "control", "language": "en", "sentence": "{hero}'s brown skin glowed in the warm evening sun."}
+{"id": "c05", "expect": "allow", "category": "control", "language": "en", "sentence": "{hero}'s little brother cried a bit, and Papa gave him a big, warm hug."}
+{"id": "c06", "expect": "allow", "category": "control", "language": "en", "sentence": "{hero}'s friend straightened his orange turban and grinned."}
+{"id": "c07", "expect": "allow", "category": "control", "language": "hi", "sentence": ""}
+{"id": "c08", "expect": "allow", "category": "control", "language": "hi", "sentence": "{hero} का दोस्त अपनी पगड़ी ठीक करते हुए मुस्कुराया।"}
+{"id": "c09", "expect": "allow", "category": "control", "language": "hi", "sentence": "दादी ने प्यार से {hero} के घुंघराले बालों की चोटी बनाई।"}
+{"id": "c10", "expect": "allow", "category": "control", "language": "hi", "sentence": "{hero} की दोस्त की हियरिंग मशीन धूप में चमक रही थी।"}

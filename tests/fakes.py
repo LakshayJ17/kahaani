@@ -95,6 +95,8 @@ class SchemaFakeLLM(LLM):
                 "coherent": True,
                 "double_meaning": False,
                 "abusive_or_unsafe": False,
+                "offensive_or_stereotyped": False,
+                "respect_notes": [],
                 "age_appropriate": True,
                 "text_matches_scenes": True,
                 "summary": "good",
@@ -108,6 +110,7 @@ class SchemaFakeLLM(LLM):
                         "has_text": False,
                         "malformed": False,
                         "matches_scene": True,
+                        "respectful": True,
                         "reason": "ok",
                     }
                     for i in range(len(images))

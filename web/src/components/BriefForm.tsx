@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import type { BriefInput, Child, Language, Style } from "@/lib/api";
 
 const LESSONS: { value: string; label: string }[] = [
@@ -27,6 +28,7 @@ interface Props {
   onSubmit: (brief: BriefInput) => void;
   kids?: Child[];
   onForgetTaste?: (childId: string) => Promise<void>;
+  onStyleChange?: (style: Style) => void;
 }
 
 export default function BriefForm({
@@ -35,6 +37,7 @@ export default function BriefForm({
   onSubmit,
   kids = [],
   onForgetTaste,
+  onStyleChange,
 }: Props) {
   const [missingHero, setMissingHero] = useState(false);
   const [kidId, setKidId] = useState<string | null>(null);
@@ -57,9 +60,17 @@ export default function BriefForm({
     setKidId(k?.id ?? null);
     setMissingHero(false);
     if (!k) {
-      setBrief((b) => ({ ...b, child_name: "", hero: "", appearance: "", favourites: "" }));
+      setBrief((b) => ({
+        ...b,
+        child_name: "",
+        hero: "",
+        appearance: "",
+        favourites: "",
+      }));
       return;
     }
+    const style = k.taste.style ?? k.last?.style;
+    if (style) onStyleChange?.(style);
     setBrief((b) => ({
       ...b,
       child_name: k.name,
@@ -69,8 +80,10 @@ export default function BriefForm({
       use_taste: true,
     }));
   };
-  const set = <K extends keyof BriefInput>(key: K, value: BriefInput[K]) =>
+  const set = <K extends keyof BriefInput>(key: K, value: BriefInput[K]) => {
     setBrief((b) => ({ ...b, [key]: value }));
+    if (key === "style") onStyleChange?.(value as Style);
+  };
 
   return (
     <form
@@ -91,7 +104,11 @@ export default function BriefForm({
             <p className="mb-2 font-medium">Who is this book for?</p>
             <div className="flex flex-wrap gap-2">
               {kids.map((k) => (
-                <Pill key={k.id} selected={kidId === k.id} onClick={() => pick(k)}>
+                <Pill
+                  key={k.id}
+                  selected={kidId === k.id}
+                  onClick={() => pick(k)}
+                >
                   {k.name}
                 </Pill>
               ))}
@@ -103,8 +120,10 @@ export default function BriefForm({
         )}
 
         {kid && (
-          <div className="rounded-sm bg-mood-calm px-5 py-4">
-            <p className="font-medium">What we&rsquo;ve learned about {kid.name}</p>
+          <div className="rounded-xl bg-mood-calm px-5 py-4">
+            <p className="font-medium">
+              What we&rsquo;ve learned about {kid.name}
+            </p>
             <p className="mt-1 text-ink-soft">
               {kid.taste.summary.length
                 ? `${kid.name} enjoys ${kid.taste.summary.join(", ")}.`
@@ -119,7 +138,7 @@ export default function BriefForm({
                     type="checkbox"
                     checked={brief.use_taste !== false}
                     onChange={(e) => set("use_taste", e.target.checked)}
-                    className="h-4 w-4 accent-indigo"
+                    className="h-4 w-4 accent-[var(--saffron-deep)]"
                   />
                   Use this for the next story
                 </label>
@@ -127,7 +146,7 @@ export default function BriefForm({
                   <button
                     type="button"
                     onClick={() => onForgetTaste(kid.id)}
-                    className="text-ink-soft underline decoration-line underline-offset-4 hover:text-ink"
+                    className="text-ink-soft underline decoration-ink/30 underline-offset-4 hover:text-ink"
                   >
                     Forget this
                   </button>
@@ -137,8 +156,8 @@ export default function BriefForm({
           </div>
         )}
 
-        <div className="rounded-sm border border-line bg-sheet px-6 pb-6 pt-5 shadow-[0_1px_0_var(--color-line)]">
-          <label htmlFor="child_name" className="font-display text-xl text-indigo">
+        <div className="rounded-xl border border-ink/15 bg-page px-6 pb-6 pt-5 shadow-[0_1px_0_var(--color-line)]">
+          <label htmlFor="child_name" className="font-display text-xl text-ink">
             This book is for
           </label>
           <input
@@ -149,7 +168,7 @@ export default function BriefForm({
             value={brief.child_name}
             onChange={(e) => set("child_name", e.target.value)}
             placeholder="Your child's first name"
-            className="mt-1 w-full border-0 border-b-2 border-line bg-transparent pb-1 font-display text-3xl text-ink placeholder:text-ink-soft/40 focus:border-indigo focus:outline-none"
+            className="mt-1 w-full border-0 border-b-2 border-ink/15 bg-transparent pb-1 font-display text-3xl text-ink placeholder:text-ink-soft/50 focus:border-saffron-deep focus:outline-none"
             aria-invalid={!!fieldErrors.child_name}
             aria-describedby="child_name_error"
           />
@@ -159,21 +178,37 @@ export default function BriefForm({
             <span className="text-sm font-medium text-ink-soft" id="hero_label">
               The hero is a
             </span>
-            <div className="mt-2 flex gap-2" role="radiogroup" aria-labelledby="hero_label">
+            <div
+              className="mt-2 flex gap-2"
+              role="radiogroup"
+              aria-labelledby="hero_label"
+            >
               {(["girl", "boy"] as const).map((h) => (
-                <Pill key={h} selected={brief.hero === h} onClick={() => set("hero", h)}>
+                <Pill
+                  key={h}
+                  selected={brief.hero === h}
+                  onClick={() => set("hero", h)}
+                >
                   {h === "girl" ? "Girl" : "Boy"}
                 </Pill>
               ))}
             </div>
-            <FieldError text={fieldErrors.hero ?? (missingHero ? "Choose girl or boy." : "")} />
+            <FieldError
+              text={
+                fieldErrors.hero ?? (missingHero ? "Choose girl or boy." : "")
+              }
+            />
           </div>
 
           <div className="mt-5">
             <span className="text-sm font-medium text-ink-soft" id="age_label">
               Age
             </span>
-            <div className="mt-2 flex gap-2" role="radiogroup" aria-labelledby="age_label">
+            <div
+              className="mt-2 flex gap-2"
+              role="radiogroup"
+              aria-labelledby="age_label"
+            >
               {AGES.map((a) => (
                 <button
                   key={a}
@@ -183,8 +218,8 @@ export default function BriefForm({
                   onClick={() => set("age", a)}
                   className={`h-10 w-10 rounded-full border text-base transition-colors ${
                     brief.age === a
-                      ? "border-indigo bg-indigo text-white"
-                      : "border-line bg-paper text-ink hover:border-indigo/50"
+                      ? "border-ink bg-ink text-page"
+                      : "border-ink/15 bg-page text-ink hover:border-ink/40"
                   }`}
                 >
                   {a}
@@ -285,8 +320,10 @@ export default function BriefForm({
                 role="radio"
                 aria-checked={brief.style === s.value}
                 onClick={() => set("style", s.value)}
-                className={`group overflow-hidden rounded-sm border-2 bg-sheet text-left transition-colors ${
-                  brief.style === s.value ? "border-indigo" : "border-transparent hover:border-line"
+                className={`group overflow-hidden rounded-xl border-2 bg-page text-left transition-colors ${
+                  brief.style === s.value
+                    ? "border-saffron-deep"
+                    : "border-transparent hover:border-ink/15"
                 }`}
               >
                 <img
@@ -303,26 +340,31 @@ export default function BriefForm({
         <Choice label="Length">
           <div className="flex gap-2">
             {([4, 8] as const).map((n) => (
-              <Pill key={n} selected={brief.pages === n} onClick={() => set("pages", n)}>
+              <Pill
+                key={n}
+                selected={brief.pages === n}
+                onClick={() => set("pages", n)}
+              >
                 {n} pages
               </Pill>
             ))}
           </div>
         </Choice>
 
-        <button
-          type="submit"
-          className="mt-1 self-start rounded-full bg-indigo px-7 py-3 text-base font-medium text-white transition-colors hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Write the story
-        </button>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          <Button type="submit">Write the story</Button>
+          <p className="text-small text-ink-soft">
+            You&rsquo;ll get a picture book (PDF) and a narrated read-along
+            video.
+          </p>
+        </div>
       </fieldset>
     </form>
   );
 }
 
 const inputClass =
-  "w-full rounded-sm border border-line bg-sheet px-3.5 py-2.5 text-base text-ink placeholder:text-ink-soft/50 focus:border-indigo focus:outline-none";
+  "w-full rounded-xl border border-ink/15 bg-page px-3.5 py-2.5 text-base text-ink placeholder:text-ink-soft/60 focus:border-saffron-deep focus:outline-none";
 
 function Field(props: {
   id: string;
@@ -343,7 +385,13 @@ function Field(props: {
   );
 }
 
-function Choice({ label, children }: { label: string; children: React.ReactNode }) {
+function Choice({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div role="radiogroup" aria-label={label}>
       <p className="mb-2 font-medium">{label}</p>
@@ -352,17 +400,21 @@ function Choice({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-function Pill(props: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+function Pill(props: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={props.selected}
       onClick={props.onClick}
-      className={`rounded-full border px-4 py-1.5 text-[0.95rem] transition-colors ${
+      className={`rounded-lg border px-4 py-1.5 text-[0.95rem] transition-colors ${
         props.selected
-          ? "border-indigo bg-indigo text-white"
-          : "border-line bg-sheet text-ink hover:border-indigo/50"
+          ? "border-ink bg-ink text-page"
+          : "border-ink/15 bg-page text-ink hover:border-ink/40"
       }`}
     >
       {props.children}
@@ -373,7 +425,7 @@ function Pill(props: { selected: boolean; onClick: () => void; children: React.R
 function FieldError({ text, id }: { text?: string; id?: string }) {
   if (!text) return null;
   return (
-    <p id={id} className="mt-1.5 text-sm text-alert">
+    <p id={id} className="mt-1.5 text-sm text-danger">
       {text}
     </p>
   );

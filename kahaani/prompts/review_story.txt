@@ -21,7 +21,16 @@ Then the whole book:
 - double_meaning: true if any word or phrase could be read with a rude, sexual, violent or
   adult second meaning, in English, Hindi or Hinglish, or as a pun.
 - abusive_or_unsafe: true for insults, mocking, bullying, scary or violent content, adult
-  themes, dangerous acts a child could copy, or stereotypes.
+  themes, or dangerous acts a child could copy.
+- offensive_or_stereotyped: true if anything could hurt or offend a family, even if mild or
+  unintended: comments on or comparisons of religion, caste, community, region or
+  language; gender stereotypes; remarks about skin colour (including fair skin as
+  prettier), weight, height or looks; a disability, glasses or hearing aid treated as a
+  problem, joke or pity (including pity words such as "poor thing", "stuck in a
+  wheelchair", "बेचारा/बेचारी", "तरस खाना", or "can't do anything"); beef, pork or alcohol; any family's food shown as strange or
+  wrong; shaming for being poor or praise for being rich; harsh, cruel or humiliating
+  adults; name-calling or slang.
+- respect_notes: short English notes naming each such problem (empty list if none).
 - age_appropriate: vocabulary and ideas suit a $age-year-old.
 - text_matches_scenes: the illustration notes describe what the page text says.
 - summary: one short English sentence on the overall quality.

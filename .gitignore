@@ -27,3 +27,16 @@ web/out/
 *.log
 .vscode/
 .idea/
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Private keys and certificates
+*.pem
+*.key
+
+# Local AI coding tool settings and notes
+.claude/
+CLAUDE.md
+AGENTS.md

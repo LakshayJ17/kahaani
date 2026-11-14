@@ -4,7 +4,14 @@
 // For local development without Supabase, the API can allow a simple named "dev" sign-in.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { API_BASE } from "./api-base";
 
 export interface Me {
@@ -28,7 +35,8 @@ interface AuthState {
   ready: boolean;
   me: Me | null;
   available: boolean; // false when sign-in isn't configured on this server
-  signIn: () => Promise<void>;
+  /** Sign in, then land on `next` (the book studio by default). */
+  signIn: (next?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   headers: () => Promise<Record<string, string>>;
@@ -46,7 +54,11 @@ async function loadConfig(): Promise<Config> {
   config = (await res.json()) as Config;
   if (config.supabaseUrl && config.supabaseAnonKey && !supabase) {
     supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: { persistSession: true, detectSessionInUrl: true, flowType: "pkce" },
+      auth: {
+        persistSession: true,
+        detectSessionInUrl: true,
+        flowType: "pkce",
+      },
     });
   }
   return config;
@@ -102,24 +114,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [refresh]);
 
-  const signIn = useCallback(async () => {
-    const cfg = await loadConfig();
-    if (supabase) {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
-      });
-      return;
-    }
-    if (cfg.devAuth) {
-      const name = window.prompt("Development sign-in: type any name")?.trim();
-      if (!name) return;
-      try {
-        localStorage.setItem(DEV_KEY, name.toLowerCase().replace(/[^a-z0-9]/g, ""));
-      } catch {}
-      await refresh();
-    }
-  }, [refresh]);
+  const signIn = useCallback(
+    async (next: string = "/create/") => {
+      const cfg = await loadConfig();
+      if (supabase) {
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: `${window.location.origin}${next}` },
+        });
+        return;
+      }
+      if (cfg.devAuth) {
+        const name = window
+          .prompt("Development sign-in: type any name")
+          ?.trim();
+        if (!name) return;
+        try {
+          localStorage.setItem(
+            DEV_KEY,
+            name.toLowerCase().replace(/[^a-z0-9]/g, ""),
+          );
+        } catch {}
+        await refresh();
+        if (window.location.pathname !== next) window.location.assign(next);
+      }
+    },
+    [refresh],
+  );
 
   const signOut = useCallback(async () => {
     if (supabase) await supabase.auth.signOut();
@@ -131,7 +152,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ready, me, available, signIn, signOut, refresh, headers: authHeaders }),
+    () => ({
+      ready,
+      me,
+      available,
+      signIn,
+      signOut,
+      refresh,
+      headers: authHeaders,
+    }),
     [ready, me, available, signIn, signOut, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
