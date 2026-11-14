@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Header from "@/components/Header";
 import Maker from "@/components/Maker";
 import Samples from "@/components/Samples";
@@ -106,7 +107,12 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-5 py-8 text-sm text-ink-soft sm:px-8">
-        <span>Kahaani makes picture books with AI. Read before you share.</span>
+        <span>
+          Kahaani makes picture books with AI. Read before you share.{" "}
+          <Link href="/privacy/" className="underline decoration-line underline-offset-4 hover:text-ink">
+            Privacy policy
+          </Link>
+        </span>
         <span>Three books per family per day.</span>
       </footer>
     </>

@@ -51,11 +51,19 @@ class LocalBlobs(Blobs):
             (self.root / _safe(path)).unlink(missing_ok=True)
 
 
+def supabase_headers(key: str) -> dict[str, str]:
+    """Headers for server-side Supabase calls. New secret keys (sb_secret_...) aren't JWTs and
+    go in `apikey` only; legacy service_role keys are JWTs and also go in Authorization."""
+    if key.startswith("sb_"):
+        return {"apikey": key}
+    return {"apikey": key, "Authorization": f"Bearer {key}"}
+
+
 class SupabaseBlobs(Blobs):
     def __init__(self, url: str, service_key: str, bucket: str = "kahaani"):
         self.base = f"{url.rstrip('/')}/storage/v1"
         self.bucket = bucket
-        self.headers = {"Authorization": f"Bearer {service_key}", "apikey": service_key}
+        self.headers = supabase_headers(service_key)
 
     def ensure_bucket(self) -> None:
         r = httpx.post(

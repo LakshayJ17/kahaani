@@ -51,6 +51,16 @@ def _flag(value: str | None, default: bool) -> bool:
     return value.strip().lower() not in ("0", "false", "no", "")
 
 
+def _supabase_base(url: str | None) -> str | None:
+    """Accept the project URL with or without a copied API path (e.g. .../rest/v1)."""
+    if not url:
+        return None
+    url = url.strip().rstrip("/")
+    for suffix in ("/rest/v1", "/auth/v1", "/storage/v1"):
+        url = url.removesuffix(suffix)
+    return url
+
+
 def on_hf_space() -> bool:
     return bool(os.environ.get("SPACE_ID"))
 
@@ -82,8 +92,9 @@ def get_settings() -> Settings:
         global_books_per_day=int(env("GLOBAL_BOOKS_PER_DAY", "60")),
         database_url=env("DATABASE_URL", "sqlite:///.data/kahaani.db"),
         blob_dir=Path(env("KAHAANI_BLOB_DIR", ".data/blobs")),
-        supabase_url=env("SUPABASE_URL") or None,
-        supabase_anon_key=env("SUPABASE_ANON_KEY") or None,
-        supabase_service_key=env("SUPABASE_SERVICE_KEY") or None,
+        supabase_url=_supabase_base(env("SUPABASE_URL")),
+        # New-style keys (publishable / secret) or legacy ones (anon / service_role) both work.
+        supabase_anon_key=env("SUPABASE_PUBLISHABLE_KEY") or env("SUPABASE_ANON_KEY") or None,
+        supabase_service_key=env("SUPABASE_SECRET_KEY") or env("SUPABASE_SERVICE_KEY") or None,
         url_secret=env("KAHAANI_URL_SECRET") or None,
     )

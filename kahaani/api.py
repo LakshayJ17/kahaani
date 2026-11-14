@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
 from kahaani.auth import User, current_user, dev_auth_enabled
-from kahaani.blobs import Blobs, LocalBlobs, SupabaseBlobs
+from kahaani.blobs import Blobs, LocalBlobs, SupabaseBlobs, supabase_headers
 from kahaani.config import Settings, get_settings
 from kahaani.db import Store, today_start
 from kahaani.library import MAX_BOOKS_PER_ACCOUNT, Library, fingerprint
@@ -485,10 +485,7 @@ def create_app(service: Service | None = None) -> FastAPI:
         ):
             r = httpx.delete(
                 f"{svc.settings.supabase_url.rstrip('/')}/auth/v1/admin/users/{user.id}",
-                headers={
-                    "Authorization": f"Bearer {svc.settings.supabase_service_key}",
-                    "apikey": svc.settings.supabase_service_key,
-                },
+                headers=supabase_headers(svc.settings.supabase_service_key),
                 timeout=30,
             )
             if r.status_code >= 400:

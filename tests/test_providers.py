@@ -175,3 +175,27 @@ def test_all_cooling_down_still_tries():
     with pytest.raises(ProviderError):
         chain.generate_json("p1", Story)
     assert chain.generate_json("p2", Story)["hero_name"] == "Meera"
+
+
+def test_supabase_headers_for_new_and_legacy_keys():
+    from kahaani.blobs import supabase_headers
+
+    assert supabase_headers("sb_secret_abc") == {"apikey": "sb_secret_abc"}
+    legacy = supabase_headers("eyJhbGciOiJIUzI1NiJ9.x.y")
+    assert legacy["Authorization"] == "Bearer eyJhbGciOiJIUzI1NiJ9.x.y"
+
+
+def test_new_supabase_key_names_are_read(monkeypatch):
+    from kahaani.config import get_settings
+
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "sb_publishable_x")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_y")
+    s = get_settings()
+    assert s.supabase_anon_key == "sb_publishable_x" and s.supabase_service_key == "sb_secret_y"
+
+
+def test_supabase_url_path_is_trimmed(monkeypatch):
+    from kahaani.config import get_settings
+
+    monkeypatch.setenv("SUPABASE_URL", "https://abc.supabase.co/rest/v1/")
+    assert get_settings().supabase_url == "https://abc.supabase.co"

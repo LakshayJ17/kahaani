@@ -116,7 +116,8 @@ All settings are environment variables; see [.env.example](.env.example).
 | `VISION_MODEL` | Models for safety and picture checks |
 | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Illustrations |
 | `CLOUDFLARE_IMAGE_MODEL`, `IMAGE_PROVIDER` | Image model; `placeholder` for offline development |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET` | Sign-in and file storage |
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` | Sign-in and file storage |
+| `SUPABASE_JWT_SECRET` | Only for projects still using the legacy HS256 JWT secret |
 | `DATABASE_URL` | Postgres connection (`postgresql+psycopg://…`); SQLite if unset |
 | `KAHAANI_URL_SECRET` | Signs the short-lived links to pictures and downloads |
 | `BOOKS_PER_DAY`, `GLOBAL_BOOKS_PER_DAY` | Per-account and site-wide daily limits |
@@ -125,9 +126,12 @@ All settings are environment variables; see [.env.example](.env.example).
 
 ### Setting up Supabase
 
-1. Create a Supabase project. Copy the project URL and the legacy `anon` and `service_role`
-   keys (Project settings → API Keys) and the legacy JWT secret (Project settings → JWT Keys)
-   into the corresponding variables.
+1. Create a Supabase project. From Project settings → API Keys, copy the project URL, the
+   publishable key (`sb_publishable_…`) and the secret key (`sb_secret_…`) into
+   `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`. Legacy `anon` and
+   `service_role` keys are also accepted (`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`).
+   If Project settings → JWT Keys still lists a legacy JWT secret as the current key, copy it
+   into `SUPABASE_JWT_SECRET`.
 2. Copy the Session pooler connection string (Connect → Session pooler) into `DATABASE_URL`,
    using the `postgresql+psycopg://` prefix.
 3. Create a Google OAuth client (web application) with the redirect URI

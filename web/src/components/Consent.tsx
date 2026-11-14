@@ -34,7 +34,11 @@ export default function Consent() {
         />
         <span>
           I am the parent or guardian, and I agree that Kahaani stores my books as described
-          above.
+          above and in the{" "}
+          <a href="/privacy/" target="_blank" className="text-indigo underline underline-offset-4">
+            privacy policy
+          </a>
+          .
         </span>
       </label>
       <button
