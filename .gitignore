@@ -1,0 +1,29 @@
+# Secrets: real keys live only in .env (see .env.example).
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Generated: API response cache, local database and files, demo books, eval results
+.cache/
+.data/
+out/
+eval/out/
+
+# Website build output (web/.gitignore covers the rest)
+web/node_modules/
+web/.next/
+web/out/
+
+# OS and editor clutter
+.DS_Store
+*.log
+.vscode/
+.idea/

@@ -1,0 +1,57 @@
+"use client";
+
+import { useState } from "react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+
+export default function Consent() {
+  const { refresh } = useAuth();
+  const [agreed, setAgreed] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="max-w-2xl rounded-sm border border-line bg-sheet p-6 sm:p-8">
+      <h3 className="text-2xl text-indigo">Before your first book</h3>
+      <div className="mt-4 space-y-3 text-ink-soft">
+        <p>
+          Kahaani saves the books you make to your library: the story, the pictures and the
+          narration. Only you can open them. You can delete a book, or your whole account and
+          everything in it, at any time.
+        </p>
+        <p>
+          To make books faster for everyone, a copy of each new story is kept with the
+          child&rsquo;s name removed. Another family asking for a very similar story may get it,
+          with their own child&rsquo;s name. The pictures are always fictional drawings made from
+          the words you type; no photos are ever used.
+        </p>
+      </div>
+      <label className="mt-6 flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-1.5 h-4 w-4 accent-indigo"
+        />
+        <span>
+          I am the parent or guardian, and I agree that Kahaani stores my books as described
+          above.
+        </span>
+      </label>
+      <button
+        disabled={!agreed || saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await api.consent();
+            await refresh();
+          } finally {
+            setSaving(false);
+          }
+        }}
+        className="mt-6 rounded-full bg-indigo px-6 py-2.5 font-medium text-white hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Agree and continue
+      </button>
+    </div>
+  );
+}

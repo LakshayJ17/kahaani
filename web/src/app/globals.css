@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/*
+  Kahaani palette: bedtime indigo, lamp-light marigold, leaf green, ink on cool paper.
+  Mood tints match the printed book so the reader and the PDF feel like one object.
+*/
+@theme {
+  --color-ink: #17181c;
+  --color-ink-soft: #4a4c55;
+  --color-paper: #f6f5f1;
+  --color-sheet: #ffffff;
+  --color-line: #dcdad3;
+  --color-indigo: #22305a;
+  --color-indigo-deep: #182243;
+  --color-marigold: #e8a33d;
+  --color-marigold-soft: #fbe9c8;
+  --color-leaf: #3d7a5a;
+  --color-alert: #a8402c;
+
+  --color-mood-happy: #fff3d1;
+  --color-mood-curious: #e3f1fc;
+  --color-mood-worried: #ece6f6;
+  --color-mood-brave: #ffe3d6;
+  --color-mood-calm: #e2f3ea;
+  --color-mood-proud: #ffedd9;
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-body: var(--font-hind), system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-marigold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--color-marigold-soft);
+}
+
+/* The one orchestrated motion: turning a page in the reader. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-in {
+  animation: page-in 260ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .page-in {
+    animation: none;
+  }
+}

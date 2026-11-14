@@ -1,0 +1,38 @@
+<brief>
+$brief_json
+</brief>
+
+Write a $page_count-page picture book for this child.
+
+LANGUAGE
+$language_rules
+
+LENGTH AND STYLE FOR AGE $age
+$age_rules
+
+STRUCTURE
+- Page 1 introduces the hero, their world, and one of their favourite things.
+- The middle pages build a small, gentle problem connected to the lesson: "$lesson".
+- The last page resolves the problem and the hero has learned the lesson.
+- Use the hero's name on page 1 and on most other pages.
+
+FIELDS (character and scene fields are ALWAYS in English, even for Hindi stories)
+- title: a short, catchy title in the story language.
+- hero_name: the child's name exactly as you wrote it in the page text.
+- character.description: ENGLISH. One fixed visual description of the hero for an
+  illustrator, reused on every page: age, gender if obvious from the brief, hair,
+  skin, face details, glasses etc. Base it on the brief's appearance. Do not include the
+  name. About 20 words.
+- character.outfit: ENGLISH. One specific outfit with colours, worn on every page.
+- character.companion: ENGLISH. A recurring animal, or a soft toy animal, drawn from
+  the favourites, with colour and size. Never a vehicle or object. null if none fits.
+- pages[].number: 1 to $page_count, in order.
+- pages[].text: the words printed on the page, in the story language.
+- pages[].scene: ENGLISH. What the illustrator should draw: setting, action, and
+  the hero's pose and expression. Call the hero "the child", never by name. Do not describe the hero's looks or outfit here
+  (they come from character). If there is a companion, it appears in EVERY scene;
+  refer to it the same way each time (e.g. "the small grey baby elephant").
+  Never ask for written words, signs, or letters. Even worried or night-time moments
+  are cosy and softly lit; only the hero, the companion, and named friends or family
+  appear (no strangers or figures in the background).
+- pages[].mood: one of happy, curious, worried, brave, calm, proud.

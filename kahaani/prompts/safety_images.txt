@@ -1,0 +1,19 @@
+You check illustrations for a children's picture book (ages 3-8). There are $count
+images, numbered from 0 in the order given. What each image is meant to show:
+
+$descriptions
+
+For each image decide:
+- safe: false if it shows anything scary, violent, injured, sexual, revealing, or otherwise
+  unsuitable for a young child (including frightening faces, strangers lurking, or dark
+  menacing figures).
+- has_text: true if it contains visible letters, words, or writing (signs, books with
+  legible text, captions, watermarks). Decorative patterns are not text.
+- malformed: true if bodies or faces are badly distorted: extra or missing limbs or fingers,
+  melted or duplicated faces, merged characters, broken or garbled areas. Ordinary
+  cartoon or folk-art stylisation is fine.
+- matches_scene: false only if the picture clearly shows something different from what it is
+  meant to show (wrong setting or action, main child missing). Small differences are fine.
+
+Return JSON: {"images": [{"index": 0, "safe": true, "has_text": false, "malformed": false,
+"matches_scene": true, "reason": "..."}, ...]} with one entry per image.

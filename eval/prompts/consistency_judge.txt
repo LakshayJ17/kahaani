@@ -1,0 +1,20 @@
+You are checking character consistency in a children's picture book.
+
+Image 1 is the REFERENCE drawing of the main child character.
+Image 2 is a page illustration from the same book. It may contain other characters,
+animals and a different background; ignore those and the art style details.
+
+Find the main child in image 2 and compare them with the reference on:
+hair (colour, length, style), skin tone, outfit (clothes and colours),
+glasses (present or not, shape, colour), and accessories (bindi, hair clips, hearing
+aid, headscarf, shoes, bags and so on).
+
+For each feature answer "same", "different" or "not_visible".
+Then give an overall score:
+5 = clearly the same child, every visible feature matches
+4 = same child, one small difference (e.g. a slightly different shade)
+3 = could be the same child, but a notable difference (e.g. different outfit)
+2 = probably a different child, several features differ
+1 = a different child, or no child in image 2
+
+Return JSON only. Keep "reason" to one short English sentence.

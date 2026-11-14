@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  @font-face { font-family: "Baloo 2"; src: url("fonts/Baloo2.ttf"); }
+  @font-face { font-family: "Noto Sans Devanagari"; src: url("fonts/NotoSansDevanagari.ttf"); }
+  @page { size: 288mm 180mm; margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Baloo 2", "Noto Sans Devanagari", sans-serif;
+    color: #3d2c29;
+  }
+  .sheet {
+    width: 288mm; height: 180mm; overflow: hidden; position: relative;
+    display: flex; flex-direction: row; page-break-after: always;
+  }
+  .sheet:last-child { page-break-after: auto; }
+  .sheet.flip { flex-direction: row-reverse; }
+  .art { width: 180mm; height: 180mm; flex: none; }
+  .art img { width: 180mm; height: 180mm; object-fit: cover; display: block; }
+  .words {
+    width: 108mm; height: 180mm; box-sizing: border-box; padding: 16mm 13mm 14mm;
+    display: flex; flex-direction: column; justify-content: center; position: relative;
+  }
+  .text { line-height: 1.5; font-weight: 500; }
+  .age-small .text { font-size: 25pt; }
+  .age-mid .text { font-size: 20pt; }
+  .age-big .text { font-size: 16.5pt; }
+  .num {
+    position: absolute; bottom: 8mm; left: 0; right: 0; text-align: center;
+    font-size: 11pt; opacity: 0.55; font-weight: 600;
+  }
+  .mood-happy { background: #fff3d1; }
+  .mood-curious { background: #e3f1fc; }
+  .mood-worried { background: #ece6f6; }
+  .mood-brave { background: #ffe3d6; }
+  .mood-calm { background: #e2f3ea; }
+  .mood-proud { background: #ffedd9; }
+
+  .cover .words { background: #2f4858; color: #fff8ec; text-align: center; }
+  .cover h1 { font-size: 30pt; line-height: 1.2; margin: 0 0 8mm; font-weight: 800; }
+  .cover .for { font-size: 15pt; opacity: 0.9; margin: 0; }
+  .cover .brand {
+    position: absolute; bottom: 9mm; left: 0; right: 0; font-size: 11pt;
+    letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.7;
+  }
+  .end {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; background: #fff3d1;
+  }
+  .end h2 { font-size: 40pt; margin: 0 0 6mm; font-weight: 800; color: #c0542f; }
+  .end .hero { width: 70mm; height: 70mm; border-radius: 50%; object-fit: cover; margin-bottom: 8mm;
+    border: 2.5mm solid #ffffff; }
+  .end p { font-size: 11pt; max-width: 170mm; opacity: 0.75; margin: 1.5mm 0; }
+</style>
+</head>
+<body class="{{ age_class }}">
+
+<section class="sheet cover">
+  <div class="art"><img src="{{ hero_src }}" alt=""></div>
+  <div class="words">
+    <h1>{{ title }}</h1>
+    <p class="for">{{ for_line }}</p>
+    <div class="brand">Kahaani</div>
+  </div>
+</section>
+
+{% for page in pages %}
+<section class="sheet {% if loop.index is even %}flip{% endif %}">
+  <div class="art"><img src="{{ page.src }}" alt=""></div>
+  <div class="words mood-{{ page.mood }}">
+    <div class="text">{{ page.text }}</div>
+    <div class="num">{{ page.number }}</div>
+  </div>
+</section>
+{% endfor %}
+
+<section class="sheet end">
+  <img class="hero" src="{{ hero_src }}" alt="">
+  <h2>{{ end_text }}</h2>
+  <p>{{ note }}</p>
+</section>
+
+</body>
+</html>
