@@ -40,3 +40,6 @@ htmlcov/
 .claude/
 CLAUDE.md
 AGENTS.md
+
+# Personal interview notes, not part of the project
+PROJECT_NOTES.md
