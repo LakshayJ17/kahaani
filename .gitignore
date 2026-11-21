@@ -43,3 +43,6 @@ AGENTS.md
 
 # Personal interview notes, not part of the project
 PROJECT_NOTES.md
+
+# Private developer tools (python -m devtools)
+devtools/
