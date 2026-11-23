@@ -51,6 +51,19 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB_OUT = ROOT / "web" / "out"
 JOB_TTL = 3600  # unfinished jobs (drafts) are dropped after an hour
 LINK_TTL = 3600  # signed file links last an hour
+HERO_REDRAWS = 5  # "another picture" per book; each one spends image quota
+PAGE_CHANGES_PER_DAY = 10  # per account; each one spends story, image and check quota
+MAX_BODY = 64 * 1024  # the largest real request (the book form) is under 2 KB
+BUILD_WAIT = 120  # seconds a PDF/video request waits for another build to finish
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+    "Referrer-Policy": "same-origin",  # signed links and job ids never leave the site
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=31536000",
+}
 
 FIELD_HELP = {
     "child_name": "Use letters and spaces only, up to 20.",
@@ -115,6 +128,7 @@ class Job:
     step: str = ""
     error: dict | None = None
     revision: int = 0
+    hero_redraws: int = 0
 
 
 def error(message: str, status: int, **extra) -> JSONResponse:
@@ -151,27 +165,70 @@ class Signer:
 
 
 class Builds:
-    """Small in-memory cache for rebuilt PDFs and videos."""
+    """Small in-memory cache for rebuilt PDFs and videos.
 
-    def __init__(self, size: int = 12):
+    Builds run one at a time: each needs a lot of memory on the small free server, and a
+    burst of requests for one file (a <video> tag sends several) must build it only once."""
+
+    def __init__(self, size: int = 12, wait: float = BUILD_WAIT):
         self.size, self.items, self.lock = size, OrderedDict(), threading.Lock()
+        self.building = threading.Lock()
+        self.wait = wait
 
-    def get(self, key, make):
+    def _cached(self, key):
         with self.lock:
             if key in self.items:
                 self.items.move_to_end(key)
                 return self.items[key]
-        value = make()
-        with self.lock:
-            self.items[key] = value
-            while len(self.items) > self.size:
-                self.items.popitem(last=False)
-        return value
+        return None
+
+    def get(self, key, make):
+        if (hit := self._cached(key)) is not None:
+            return hit
+        if not self.building.acquire(timeout=self.wait):
+            raise HTTPException(503, "We're busy preparing another book. Please try again soon.")
+        try:
+            if (hit := self._cached(key)) is not None:  # built while we waited
+                return hit
+            value = make()
+            with self.lock:
+                self.items[key] = value
+                while len(self.items) > self.size:
+                    self.items.popitem(last=False)
+            return value
+        finally:
+            self.building.release()
 
     def drop(self, book_id: str) -> None:
         with self.lock:
             for k in [k for k in self.items if k[0] == book_id]:
                 del self.items[k]
+
+
+class BodyLimit:
+    """Refuse oversized request bodies before they are read into memory. FastAPI reads the
+    body before it checks sign-in, so without this anyone could send hundreds of MB."""
+
+    def __init__(self, app, limit: int = MAX_BODY):
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        length = dict(scope["headers"]).get(b"content-length", b"0")
+        if not length.isdigit() or int(length) > self.limit:
+            return await error("That request is too large.", 413)(scope, receive, send)
+        seen = 0
+
+        async def limited():  # a body sent in chunks has no content-length to check
+            nonlocal seen
+            message = await receive()
+            seen += len(message.get("body", b""))
+            if seen > self.limit:
+                raise HTTPException(413, "That request is too large.")
+            return message
+
+        await self.app(scope, limited, send)
 
 
 def for_line(language: str, hero_name: str) -> str:
@@ -199,6 +256,9 @@ class Service:
         self.jobs: dict[str, Job] = {}
         self.queue: list[str] = []
         self.lock = threading.Lock()
+        # Held while a request checks the daily limits and registers its job, so a burst of
+        # simultaneous requests can't all pass the check before any of them is counted.
+        self.admit = threading.Lock()
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="book")
         self.signer = Signer(settings.url_secret)
         self.builds = Builds()
@@ -216,8 +276,13 @@ class Service:
     def expire(self) -> None:
         cutoff = time.time() - JOB_TTL
         with self.lock:
-            for jid in [j for j, job in self.jobs.items() if job.created < cutoff and not job.busy]:
-                del self.jobs[jid]
+            for job in self.all_jobs():
+                if job.created < cutoff and not job.busy:
+                    del self.jobs[job.id]
+
+    def all_jobs(self) -> list[Job]:
+        """A snapshot: other request threads add jobs while we look."""
+        return list(self.jobs.values())
 
     def job(self, job_id: str, user: User) -> Job:
         job = self.jobs.get(job_id)
@@ -225,23 +290,24 @@ class Service:
             raise HTTPException(404, "This book has expired. Please start a new one.")
         return job
 
-    def active_starts(self, user_id: str | None = None) -> int:
-        """New books in progress (not yet saved), so limits count them too."""
-        return sum(
+    def stories_today(self, user_id: str | None = None) -> int:
+        """Stories written today (store.usage) plus ones being written right now. A story is
+        recorded while its job is still busy, so it is never missed in between."""
+        writing = sum(
             1
-            for j in self.jobs.values()
-            if j.saved_book_id is None
-            and j.redo_book_id is None
-            and (user_id is None or j.user_id == user_id)
-            and (j.busy or j.draft is not None)
+            for j in self.all_jobs()
+            if j.busy and j.action == "start" and (user_id is None or j.user_id == user_id)
         )
+        return self.store.uses_since(today_start(), "story", user_id) + writing
 
     def submit(self, job: Job, action: Action, work) -> None:
-        if job.busy:
-            raise HTTPException(409, "This book is still being worked on.")
-        job.busy, job.action, job.error = True, action, None
-        job.progress, job.step = 0.0, "Waiting for a free spot"
-        with self.lock:
+        with self.lock:  # check-and-set in one step: two clicks mustn't queue the work twice
+            if self.jobs.get(job.id) is not job:  # dropped, e.g. the account was deleted
+                raise HTTPException(404, "This book has expired. Please start a new one.")
+            if job.busy:
+                raise HTTPException(409, "This book is still being worked on.")
+            job.busy, job.action, job.error = True, action, None
+            job.progress, job.step = 0.0, "Waiting for a free spot"
             self.queue.append(job.id)
 
         def run():
@@ -392,6 +458,9 @@ def create_app(service: Service | None = None) -> FastAPI:
     svc = service or default_service(get_settings())
     app = FastAPI(title="Kahaani", docs_url=None, redoc_url=None)
     app.state.service = svc
+    # Innermost (added first), so its 413 also gets CORS and security headers, and an
+    # oversized chunked body reaches the route as a 413 rather than a parse error.
+    app.add_middleware(BodyLimit)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -400,9 +469,12 @@ def create_app(service: Service | None = None) -> FastAPI:
     )
 
     @app.middleware("http")
-    async def drop_old_jobs(request: Request, call_next):
+    async def housekeeping(request: Request, call_next):
         svc.expire()
-        return await call_next(request)
+        response = await call_next(request)
+        for name, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
+        return response
 
     def signed_in(request: Request) -> User:
         user = current_user(request)
@@ -462,7 +534,7 @@ def create_app(service: Service | None = None) -> FastAPI:
             "email": user.email,
             "name": user.name,
             "consent": bool(row["consent_at"]),
-            "booksToday": svc.store.books_made_since(today_start(), user.id),
+            "booksToday": svc.stories_today(user.id),
             "booksPerDay": svc.settings.books_per_ip_per_day,
             "saved": svc.store.count_books(user.id),
             "maxSaved": MAX_BOOKS_PER_ACCOUNT,
@@ -475,9 +547,18 @@ def create_app(service: Service | None = None) -> FastAPI:
 
     @app.delete("/api/me")
     def delete_account(user: User = Depends(signed_in)):
+        # A job that is running would save its files after we've deleted everything, so wait
+        # for it. Dropping the jobs under the lock stops new work on them (see submit).
+        with svc.lock:
+            mine = [j for j in svc.all_jobs() if j.user_id == user.id]
+            if any(j.busy for j in mine):
+                raise HTTPException(
+                    409,
+                    "A book is still being made. Please wait until it's finished, then try again.",
+                )
+            for j in mine:
+                svc.jobs.pop(j.id, None)
         removed = svc.library.delete_account(user.id)
-        for jid in [j for j, job in svc.jobs.items() if job.user_id == user.id]:
-            svc.jobs.pop(jid, None)
         if (
             svc.settings.supabase_url
             and svc.settings.supabase_service_key
@@ -529,38 +610,38 @@ def create_app(service: Service | None = None) -> FastAPI:
         if existing and not body.fresh:
             return {"existingBookId": existing["id"], "title": existing["title"]}
 
-        if svc.store.count_books(user.id) >= MAX_BOOKS_PER_ACCOUNT:
-            return error(
-                f"You have {MAX_BOOKS_PER_ACCOUNT} saved books, the most we can keep on our "
-                "free plan. Delete one to make room.",
-                409,
-            )
-        made = svc.store.books_made_since(today_start(), user.id) + svc.active_starts(user.id)
-        if made >= svc.settings.books_per_ip_per_day:
-            return error(
-                f"You've made {svc.settings.books_per_ip_per_day} books today, the daily limit on "
-                "our free servers. Please come back tomorrow.",
-                429,
-            )
-        everyone = svc.store.books_made_since(today_start()) + svc.active_starts()
-        if everyone >= svc.settings.global_books_per_day:
-            return error(
-                "Kahaani has made all the books it can for today on its free servers. "
-                "Please come back tomorrow.",
-                429,
-            )
-
         # A new version shouldn't reuse the template behind the book they already have.
         exclude = {existing["template_id"]} if existing and existing["template_id"] else set()
         job = Job(
             id=uuid.uuid4().hex, user_id=user.id, brief=brief, fingerprint=fp, exclude=exclude
         )
-        svc.jobs[job.id] = job
 
         def work(report):
-            job.draft = svc.maker.start(brief, report, exclude=job.exclude)
+            draft = svc.maker.start(brief, report, exclude=job.exclude)
+            svc.store.record_use(user.id, "story")  # counts even if it's never saved
+            job.draft = draft
 
-        svc.submit(job, "start", work)
+        with svc.admit:
+            if svc.store.count_books(user.id) >= MAX_BOOKS_PER_ACCOUNT:
+                return error(
+                    f"You have {MAX_BOOKS_PER_ACCOUNT} saved books, the most we can keep on our "
+                    "free plan. Delete one to make room.",
+                    409,
+                )
+            if svc.stories_today(user.id) >= svc.settings.books_per_ip_per_day:
+                return error(
+                    f"You've made {svc.settings.books_per_ip_per_day} books today, the daily "
+                    "limit on our free servers. Please come back tomorrow.",
+                    429,
+                )
+            if svc.stories_today() >= svc.settings.global_books_per_day:
+                return error(
+                    "Kahaani has made all the books it can for today on its free servers. "
+                    "Please come back tomorrow.",
+                    429,
+                )
+            svc.jobs[job.id] = job
+            svc.submit(job, "start", work)  # busy from here on, so the next check counts it
         return svc.job_view(job)
 
     @app.get("/api/jobs/{job_id}")
@@ -572,12 +653,19 @@ def create_app(service: Service | None = None) -> FastAPI:
         job = svc.job(job_id, user)
         if not job.draft or job.saved_book_id:
             raise HTTPException(409, "There's no hero picture to replace.")
+        if job.hero_redraws >= HERO_REDRAWS:
+            raise HTTPException(
+                429,
+                f"You've seen {HERO_REDRAWS + 1} pictures for this book, the most we can draw "
+                "on our free servers. Choose one, or start again with a different description.",
+            )
 
         def work(report):
             report(0.3, "Drawing another hero")
             job.draft = svc.maker.new_hero(job.draft)
 
         svc.submit(job, "hero", work)
+        job.hero_redraws += 1
         return svc.job_view(job)
 
     @app.post("/api/jobs/{job_id}/approve")
@@ -645,7 +733,7 @@ def create_app(service: Service | None = None) -> FastAPI:
         editing = next(
             (
                 j
-                for j in svc.jobs.values()
+                for j in svc.all_jobs()
                 if j.redo_book_id == book_id and j.user_id == user.id and (j.busy or j.error)
             ),
             None,
@@ -737,8 +825,6 @@ def create_app(service: Service | None = None) -> FastAPI:
         row = svc.store.get_book(user.id, book_id)
         if row is None:
             raise HTTPException(404, "This book isn't in your library.")
-        if any(j.redo_book_id == book_id and j.busy for j in svc.jobs.values()):
-            raise HTTPException(409, "This book is already being changed.")
         job = Job(
             id=uuid.uuid4().hex,
             user_id=user.id,
@@ -746,15 +832,27 @@ def create_app(service: Service | None = None) -> FastAPI:
             fingerprint=row["fingerprint"],
             redo_book_id=book_id,
         )
-        svc.jobs[job.id] = job
 
         def work(report):
             book = svc.library.load(user.id, book_id)
+            if book is None:  # deleted while waiting
+                raise BookError("This book isn't in your library any more.")
             book = svc.maker.redo_page(book, number, body.request, report)
             svc.library.update_page(user.id, book_id, book, number)
             svc.builds.drop(book_id)
 
-        svc.submit(job, "redo", work)
+        with svc.admit:
+            if any(j.redo_book_id == book_id and j.busy for j in svc.all_jobs()):
+                raise HTTPException(409, "This book is already being changed.")
+            if svc.store.uses_since(today_start(), "page", user.id) >= PAGE_CHANGES_PER_DAY:
+                raise HTTPException(
+                    429,
+                    f"You've changed {PAGE_CHANGES_PER_DAY} pages today, the daily limit on our "
+                    "free servers. Please come back tomorrow.",
+                )
+            svc.jobs[job.id] = job
+            svc.submit(job, "redo", work)
+            svc.store.record_use(user.id, "page")
         return svc.job_view(job)
 
     # The built Next.js site (web/out), if present. Mounted last so /api wins.

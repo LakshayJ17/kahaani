@@ -163,6 +163,9 @@ export class RequestError extends Error {
 
 export const url = (path: string) => `${API_BASE}${path}`;
 
+// Ids go into URL paths; encode them so a crafted id ("../me") can't point a call elsewhere.
+const seg = (id: string) => encodeURIComponent(id);
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -206,32 +209,32 @@ export const api = {
       "/api/books",
       post({ ...brief, fresh }),
     ),
-  job: (id: string) => call<Job>(`/api/jobs/${id}`),
-  newHero: (id: string) => call<Job>(`/api/jobs/${id}/hero`, post()),
-  approve: (id: string) => call<Job>(`/api/jobs/${id}/approve`, post()),
+  job: (id: string) => call<Job>(`/api/jobs/${seg(id)}`),
+  newHero: (id: string) => call<Job>(`/api/jobs/${seg(id)}/hero`, post()),
+  approve: (id: string) => call<Job>(`/api/jobs/${seg(id)}/approve`, post()),
 
   library: () => call<Library>("/api/library"),
-  book: (id: string) => call<SavedBook>(`/api/library/${id}`),
+  book: (id: string) => call<SavedBook>(`/api/library/${seg(id)}`),
   progress: (id: string, page: number, finished = false) =>
     call<{ ok: boolean }>(
-      `/api/library/${id}/progress`,
+      `/api/library/${seg(id)}/progress`,
       post({ page, finished }),
     ),
   report: (id: string) =>
-    call<{ ok: boolean }>(`/api/library/${id}/report`, post()),
+    call<{ ok: boolean }>(`/api/library/${seg(id)}/report`, post()),
   deleteBook: (id: string) =>
-    call<{ ok: boolean }>(`/api/library/${id}`, { method: "DELETE" }),
+    call<{ ok: boolean }>(`/api/library/${seg(id)}`, { method: "DELETE" }),
   redo: (id: string, page: number, request: string) =>
-    call<Job>(`/api/library/${id}/pages/${page}/redo`, post({ request })),
+    call<Job>(`/api/library/${seg(id)}/pages/${page}/redo`, post({ request })),
 
   feedback: (id: string, fb: Feedback) =>
     call<{ ok: boolean; taste: Taste }>(
-      `/api/library/${id}/feedback`,
+      `/api/library/${seg(id)}/feedback`,
       post(fb),
     ),
   children: () => call<Child[]>("/api/children"),
   forgetTaste: (childId: string) =>
-    call<{ ok: boolean }>(`/api/children/${childId}/taste`, {
+    call<{ ok: boolean }>(`/api/children/${seg(childId)}/taste`, {
       method: "DELETE",
     }),
 

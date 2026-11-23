@@ -15,6 +15,8 @@ from functools import cache
 import jwt
 from fastapi import HTTPException, Request
 
+ALLOWED_PROVIDERS = {"google"}
+
 
 @dataclass(frozen=True)
 class User:
@@ -52,6 +54,12 @@ def verify_token(token: str) -> User:
         )
     except jwt.PyJWTError as e:
         raise HTTPException(401, "Please sign in again.") from e
+    # The site only offers Google. Supabase may still have email (or anonymous) sign-up on,
+    # which would let anyone make throwaway accounts straight through its API.
+    app_meta = claims.get("app_metadata") or {}
+    providers = {app_meta.get("provider"), *(app_meta.get("providers") or [])}
+    if claims.get("is_anonymous") or not providers & ALLOWED_PROVIDERS:
+        raise HTTPException(401, "Please sign in with Google to continue.")
     meta = claims.get("user_metadata") or {}
     return User(claims["sub"], claims.get("email"), meta.get("full_name") or meta.get("name"))
 

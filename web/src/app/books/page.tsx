@@ -8,7 +8,13 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
-import { api, url, type Library, type ShelfBook } from "@/lib/api";
+import {
+  api,
+  url,
+  type Library,
+  type RequestError,
+  type ShelfBook,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function BooksPage() {
@@ -168,6 +174,7 @@ function Shelf({ book }: { book: ShelfBook }) {
 function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
   const [asking, setAsking] = useState(false);
   const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   if (!asking)
     return (
       <button
@@ -187,10 +194,12 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
           aria-busy={working || undefined}
           onClick={async () => {
             setWorking(true);
+            setFailed(null);
             try {
               await api.deleteAccount();
               onDeleted();
-            } catch {
+            } catch (e) {
+              setFailed((e as RequestError).detail.message);
               setWorking(false);
             }
           }}
@@ -206,6 +215,11 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
           Keep my account
         </button>
       </div>
+      {failed && (
+        <p role="alert" className="mt-3 text-danger">
+          {failed}
+        </p>
+      )}
     </div>
   );
 }

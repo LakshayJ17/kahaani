@@ -119,6 +119,16 @@ feedback = Table(  # a parent's reaction to one of their books (one row per book
     Index("ix_feedback_child", "user_id", "child_id"),
 )
 
+usage = Table(  # what each account asked the AI to do, for the daily limits
+    "usage",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("user_id", String(64), nullable=False),
+    Column("kind", String(16), nullable=False),  # "story" (a new book) | "page" (a page change)
+    Column("created_at", Float, nullable=False),
+    Index("ix_usage_kind", "kind", "created_at"),
+)
+
 names = Table(  # cached name spellings, e.g. Aarav -> आरव
     "name_spellings",
     metadata,
@@ -241,6 +251,7 @@ class Store:
                 .values(source_user_id=None)
             )
             c.execute(delete(feedback).where(feedback.c.user_id == user_id))
+            c.execute(delete(usage).where(usage.c.user_id == user_id))
             c.execute(delete(books).where(books.c.user_id == user_id))
             c.execute(delete(children).where(children.c.user_id == user_id))
             c.execute(delete(users).where(users.c.id == user_id))
@@ -252,6 +263,27 @@ class Store:
         q = select(func.count()).select_from(books).where(books.c.created_at >= since)
         if user_id:
             q = q.where(books.c.user_id == user_id)
+        with self.engine.connect() as c:
+            return int(c.execute(q).scalar_one())
+
+    def record_use(self, user_id: str, kind: str) -> None:
+        with self.engine.begin() as c:
+            c.execute(
+                insert(usage).values(
+                    id=new_id(), user_id=user_id, kind=kind, created_at=time.time()
+                )
+            )
+
+    def uses_since(self, since: float, kind: str, user_id: str | None = None) -> int:
+        """A story counts once it's written, even if it's never saved; a page change counts
+        when it's asked for."""
+        q = (
+            select(func.count())
+            .select_from(usage)
+            .where(usage.c.kind == kind, usage.c.created_at >= since)
+        )
+        if user_id:
+            q = q.where(usage.c.user_id == user_id)
         with self.engine.connect() as c:
             return int(c.execute(q).scalar_one())
 

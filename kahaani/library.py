@@ -118,15 +118,40 @@ def fingerprint(brief: Brief) -> str:
     return hashlib.sha256(repr(sorted(data.items())).encode()).hexdigest()
 
 
+# Letters that can continue a word. \w misses Devanagari vowel signs, so add that block.
+_WORD = r"[\wऀ-ॿ]"
+
+
+def _whole_word(name: str) -> re.Pattern:
+    """The name on its own, not inside a longer word: "Om" but not "home", "Ved" not "loved"."""
+    return re.compile(rf"(?<!{_WORD}){re.escape(name)}(?!{_WORD})", re.IGNORECASE)
+
+
 def anonymise(story: Story) -> dict:
-    name = story.hero_name
-    pattern = re.compile(re.escape(name), re.IGNORECASE)
+    pattern = _whole_word(story.hero_name)
+
+    def swap(text: str) -> str:
+        # A lowercase match is a word, not the name ("Joy" vs "full of joy"); it is left in,
+        # and still_named() then keeps the story private.
+        return pattern.sub(lambda m: m[0] if m[0][0].islower() else HERO, text)
+
     data = story.model_dump()
-    data["title"] = pattern.sub(HERO, data["title"])
+    data["title"] = swap(data["title"])
     data["hero_name"] = HERO
     for p in data["pages"]:
-        p["text"] = pattern.sub(HERO, p["text"])
+        p["text"] = swap(p["text"])
     return data
+
+
+def still_named(template_story: dict, *names: str) -> bool:
+    """True if a child's name survived anonymising (e.g. joined to another word), so the
+    story must not be shared. Errs on the safe side: "Om" also matches "home"."""
+    c = template_story["character"]
+    text = " ".join(
+        [template_story["title"], c["description"], c["outfit"], c["companion"] or ""]
+        + [p["text"] for p in template_story["pages"]]
+    ).casefold()
+    return any(n.casefold() in text for n in names if n)
 
 
 def personalise(template_story: dict, hero_name: str) -> Story:
@@ -269,6 +294,9 @@ class Library:
             assets.update({k: v for k, v in (tpl or {}).get("assets", {}).items()})
         if not assets:
             key = story_key(brief)
+            shared = anonymise(book.story)
+            if key and still_named(shared, book.story.hero_name, brief.child_name):
+                key = None  # keep it private to this family
             if book.reuse == "none" and key:
                 template_id = new_id()
                 prefix = f"templates/{template_id}"
@@ -285,7 +313,7 @@ class Library:
                     favourites=words(brief.favourites),
                     style=brief.style,
                     looks=words(brief.appearance),
-                    story=anonymise(book.story),
+                    story=shared,
                     assets=dict(assets),
                     source_user_id=user_id,
                 )
