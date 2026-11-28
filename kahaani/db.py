@@ -136,6 +136,17 @@ names = Table(  # cached name spellings, e.g. Aarav -> आरव
     Column("devanagari", String(80), nullable=False),
 )
 
+admin_log = Table(  # changes made by the maintainer's tools, e.g. disabling a shared story
+    "admin_log",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("action", String(40), nullable=False),  # e.g. "template.disable"
+    Column("target", String(64), nullable=False),  # the id it changed
+    Column("detail", String(200), nullable=False, default=""),
+    Column("created_at", Float, nullable=False),
+    Index("ix_admin_log_time", "created_at"),
+)
+
 
 def new_id() -> str:
     return uuid.uuid4().hex
@@ -566,6 +577,29 @@ class Store:
         with self.engine.begin() as c:
             if self.name_spelling(latin) is None:
                 c.execute(insert(names).values(latin=latin.lower(), devanagari=devanagari))
+
+    # ------------------------------------------------------------------ admin log
+
+    def log_admin(self, action: str, target: str, detail: str = "", conn=None) -> None:
+        """Record a maintainer's change. Pass the change's own connection so the change and
+        its record are saved together, or not at all."""
+        row = insert(admin_log).values(
+            id=new_id(),
+            action=action[:40],
+            target=target[:64],
+            detail=detail[:200],
+            created_at=time.time(),
+        )
+        if conn is not None:
+            conn.execute(row)
+            return
+        with self.engine.begin() as c:
+            c.execute(row)
+
+    def admin_actions(self, limit: int = 50) -> list[dict]:
+        q = select(admin_log).order_by(admin_log.c.created_at.desc()).limit(limit)
+        with self.engine.connect() as c:
+            return [dict(r) for r in c.execute(q).mappings()]
 
 
 def dumps(value: Any) -> str:

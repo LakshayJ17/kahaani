@@ -45,6 +45,9 @@ def env(tmp_path, monkeypatch):
         return fake_maker(llm)
 
     svc = api.Service(settings, store, blobs, factory)
+    # wait() below polls 20 times a second, far faster than the website; the real per-minute
+    # limits have their own tests in test_security.py.
+    svc.requests = api.RateLimit(100_000, 60)
     with TestClient(api.create_app(svc)) as client:
         yield client, svc, llms
 

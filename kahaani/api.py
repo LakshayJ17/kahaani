@@ -15,12 +15,13 @@ import hashlib
 import hmac
 import io
 import logging
+import math
 import os
 import secrets
 import threading
 import time
 import uuid
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,7 +33,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from kahaani.auth import User, current_user, dev_auth_enabled
 from kahaani.blobs import Blobs, LocalBlobs, SupabaseBlobs, supabase_headers
@@ -55,15 +56,51 @@ HERO_REDRAWS = 5  # "another picture" per book; each one spends image quota
 PAGE_CHANGES_PER_DAY = 10  # per account; each one spends story, image and check quota
 MAX_BODY = 64 * 1024  # the largest real request (the book form) is under 2 KB
 BUILD_WAIT = 120  # seconds a PDF/video request waits for another build to finish
+# Per-account request limits. The website polls a running job once a second, and a library
+# page asks for one cover per book, so these sit well above normal use.
+REQUESTS_PER_MINUTE = 240
+FILES_PER_MINUTE = 240
+BUILDS_PER_HOUR = 20  # PDFs and videos made again because they weren't in the cache
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
     "Referrer-Policy": "same-origin",  # signed links and job ids never leave the site
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Strict-Transport-Security": "max-age=31536000",
+    "Cross-Origin-Opener-Policy": "same-origin",
 }
+
+
+def content_security_policy(supabase_url: str | None) -> str:
+    """Everything the site loads is its own, apart from sign-in calls to Supabase. Next.js
+    puts page data in inline scripts and the animations set inline styles, so those stay
+    allowed; scripts from anywhere else, plugins, framing and foreign forms are not."""
+    connect = " ".join(["'self'", *([supabase_url.rstrip("/")] if supabase_url else [])])
+    return "; ".join(
+        [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "media-src 'self' blob:",
+            "font-src 'self'",
+            f"connect-src {connect}",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "form-action 'self'",
+        ]
+    )
+
+
+def dev_origins() -> list[str]:
+    """The Next.js dev server (port 3000) calls a local API on port 8000. A deployed server
+    (HOST=0.0.0.0 in the container) serves the site itself, so it allows no other origin."""
+    if os.environ.get("HOST", "127.0.0.1") not in ("127.0.0.1", "localhost"):
+        return []
+    return ["http://localhost:3000", "http://127.0.0.1:3000"]
+
 
 FIELD_HELP = {
     "child_name": "Use letters and spaces only, up to 20.",
@@ -95,16 +132,16 @@ class BookRequest(BaseModel):
 
 
 class RedoRequest(BaseModel):
-    request: str = ""
+    request: str = Field(default="", max_length=200)  # the website's box holds 200
 
 
 class FeedbackRequest(BaseModel):
     rating: Literal[-1, 0, 1]
-    tags: list[str] = []
+    tags: list[str] = Field(default=[], max_length=20)
 
 
 class ProgressRequest(BaseModel):
-    page: int
+    page: int = Field(ge=0, le=100)
     finished: bool = False
 
 
@@ -205,6 +242,35 @@ class Builds:
                 del self.items[k]
 
 
+class RateLimit:
+    """At most `limit` requests per key in any `window` seconds, counted in memory (the app
+    runs as one process). Keys are account ids, which a verified token or signed link gives
+    us; behind the hosting proxy every request comes from the proxy's address."""
+
+    def __init__(self, limit: int, window: float, clock=time.monotonic):
+        self.limit, self.window, self.clock = limit, window, clock
+        self.hits: dict[str, deque[float]] = {}
+        self.lock = threading.Lock()
+
+    def check(self, key: str, message: str = "Too many requests. Please wait a minute.") -> None:
+        now = self.clock()
+        with self.lock:
+            hits = self.hits.setdefault(key, deque())
+            while hits and hits[0] <= now - self.window:
+                hits.popleft()
+            if len(hits) >= self.limit:
+                wait = max(1, math.ceil(hits[0] + self.window - now))
+                raise HTTPException(429, message, headers={"Retry-After": str(wait)})
+            hits.append(now)
+
+    def sweep(self) -> None:
+        """Forget keys with no recent requests, so the table doesn't grow forever."""
+        cutoff = self.clock() - self.window
+        with self.lock:
+            for key in [k for k, h in self.hits.items() if not h or h[-1] <= cutoff]:
+                del self.hits[key]
+
+
 class BodyLimit:
     """Refuse oversized request bodies before they are read into memory. FastAPI reads the
     body before it checks sign-in, so without this anyone could send hundreds of MB."""
@@ -262,6 +328,9 @@ class Service:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="book")
         self.signer = Signer(settings.url_secret)
         self.builds = Builds()
+        self.requests = RateLimit(REQUESTS_PER_MINUTE, 60)
+        self.files = RateLimit(FILES_PER_MINUTE, 60)
+        self.rebuilds = RateLimit(BUILDS_PER_HOUR, 3600)
 
     @property
     def maker(self) -> BookMaker:
@@ -279,6 +348,8 @@ class Service:
             for job in self.all_jobs():
                 if job.created < cutoff and not job.busy:
                     del self.jobs[job.id]
+        for limit in (self.requests, self.files, self.rebuilds):
+            limit.sweep()
 
     def all_jobs(self) -> list[Job]:
         """A snapshot: other request threads add jobs while we look."""
@@ -418,12 +489,23 @@ class Service:
             return self.blobs.get(assets[key]), "image/jpeg"
         version = hashlib.sha256(repr((assets, row["story"])).encode()).hexdigest()[:12]
         if name == "book.pdf":
-            pdf = self.builds.get((book_id, "pdf", version), lambda: self._pdf(user_id, book_id))
-            return pdf, "application/pdf"
+            make = self._counted(user_id, lambda: self._pdf(user_id, book_id))
+            return self.builds.get((book_id, "pdf", version), make), "application/pdf"
         if name == "book.mp4":
-            mp4 = self.builds.get((book_id, "mp4", version), lambda: self._video(user_id, book_id))
-            return mp4, "video/mp4"
+            make = self._counted(user_id, lambda: self._video(user_id, book_id))
+            return self.builds.get((book_id, "mp4", version), make), "video/mp4"
         raise HTTPException(404, "No such file.")
+
+    def _counted(self, user_id: str, make):
+        """A build takes the whole server for a while; only builds (not cached copies) count."""
+
+        def run():
+            self.rebuilds.check(
+                user_id, "You've opened a lot of books this hour. Please try again later."
+            )
+            return make()
+
+        return run
 
     def _pdf(self, user_id: str, book_id: str) -> bytes:
         book = self.library.load(user_id, book_id)
@@ -456,28 +538,36 @@ def default_service(settings: Settings, maker_factory=None) -> Service:
 
 def create_app(service: Service | None = None) -> FastAPI:
     svc = service or default_service(get_settings())
-    app = FastAPI(title="Kahaani", docs_url=None, redoc_url=None)
+    # No /docs, /redoc or /openapi.json: the website is the only client, so don't publish a
+    # map of every route.
+    app = FastAPI(title="Kahaani", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.service = svc
     # Innermost (added first), so its 413 also gets CORS and security headers, and an
     # oversized chunked body reaches the route as a 413 rather than a parse error.
     app.add_middleware(BodyLimit)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    if origins := dev_origins():
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["GET", "POST", "DELETE"],
+            allow_headers=["Authorization", "Content-Type", "X-Dev-User"],
+        )
+    security_headers = {
+        **SECURITY_HEADERS,
+        "Content-Security-Policy": content_security_policy(svc.settings.supabase_url),
+    }
 
     @app.middleware("http")
     async def housekeeping(request: Request, call_next):
         svc.expire()
         response = await call_next(request)
-        for name, value in SECURITY_HEADERS.items():
+        for name, value in security_headers.items():
             response.headers.setdefault(name, value)
         return response
 
     def signed_in(request: Request) -> User:
         user = current_user(request)
+        svc.requests.check(user.id)
         svc.store.upsert_user(user.id, user.email, user.name)
         return user
 
@@ -689,6 +779,7 @@ def create_app(service: Service | None = None) -> FastAPI:
         job = svc.jobs.get(job_id)
         if job is None or job.draft is None:
             raise HTTPException(404)
+        svc.files.check(job.user_id)
         return Response(jpeg(job.draft.hero), media_type="image/jpeg")
 
     # ------------------------------------------------------------------ library
@@ -744,6 +835,7 @@ def create_app(service: Service | None = None) -> FastAPI:
     @app.get("/api/files/{book_id}/{name}")
     def file(book_id: str, name: str, t: str, request: Request):
         user_id = svc.signer.check(t, book_id, name)
+        svc.files.check(user_id)
         data, media = svc.file(user_id, book_id, name)
         headers = {"Cache-Control": "private, max-age=3600"}
         if name.endswith((".pdf", ".mp4")) and request.query_params.get("download"):
@@ -825,6 +917,9 @@ def create_app(service: Service | None = None) -> FastAPI:
         row = svc.store.get_book(user.id, book_id)
         if row is None:
             raise HTTPException(404, "This book isn't in your library.")
+        # Checked here too, so a made-up page number never uses up a page change or the worker.
+        if not 1 <= number <= row["page_count"]:
+            raise HTTPException(404, "That page doesn't exist.")
         job = Job(
             id=uuid.uuid4().hex,
             user_id=user.id,

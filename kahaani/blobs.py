@@ -5,6 +5,7 @@
   Files are never public; the API checks who is signed in and streams them itself.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -12,6 +13,8 @@ import httpx
 
 from kahaani.providers.errors import ProviderError, TransientError
 from kahaani.providers.retry import with_retries
+
+log = logging.getLogger(__name__)
 
 
 class Blobs(ABC):
@@ -74,6 +77,24 @@ class SupabaseBlobs(Blobs):
         )
         if r.status_code not in (200, 201, 400, 409):  # 400/409: already exists
             raise ProviderError(f"supabase storage HTTP {r.status_code}")
+        if r.status_code in (400, 409):
+            self._keep_private()
+
+    def _keep_private(self) -> None:
+        """An existing bucket may have been switched to public in the dashboard; that would
+        let anyone with a file path download children's pictures. Switch it back."""
+        r = httpx.get(f"{self.base}/bucket/{self.bucket}", headers=self.headers, timeout=30)
+        if r.status_code != 200 or not r.json().get("public"):
+            return
+        log.warning("storage bucket %s was public; making it private", self.bucket)
+        r = httpx.put(
+            f"{self.base}/bucket/{self.bucket}",
+            headers=self.headers,
+            timeout=30,
+            json={"id": self.bucket, "name": self.bucket, "public": False},
+        )
+        if r.status_code >= 400:
+            raise ProviderError(f"supabase storage: bucket still public (HTTP {r.status_code})")
 
     def _call(self, method: str, path: str, **kw) -> httpx.Response:
         def go():

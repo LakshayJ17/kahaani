@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -75,12 +76,36 @@ def render_html(brief: Brief, story: Story, hero: bytes, pages: list[bytes]) -> 
     )
 
 
+def allowed_url(url: str) -> bool:
+    """The book only needs the pictures we embed as data: URIs and its own bundled fonts.
+    Anything else (a web address, another file on the server) is refused, so no text in a
+    story could ever make the PDF renderer fetch or read something."""
+    if url.startswith("data:"):
+        return True
+    parts = urlparse(url)
+    if parts.scheme != "file" or parts.netloc not in ("", "localhost"):
+        return False
+    return Path(unquote(parts.path)).resolve().is_relative_to(TEMPLATES)
+
+
+def _url_fetcher():
+    from weasyprint.urls import URLFetcher
+
+    class TemplateOnly(URLFetcher):
+        def fetch(self, url, headers=None):
+            if not allowed_url(url):
+                raise ValueError(f"blocked URL in book HTML: {url[:60]}")
+            return super().fetch(url, headers)
+
+    return TemplateOnly(allowed_protocols=("data", "file"), allow_redirects=False)
+
+
 def build_pdf(html: str) -> bytes:
     _ensure_native_libs()
     from weasyprint import HTML
 
     start = time.perf_counter()
-    pdf = HTML(string=html, base_url=str(TEMPLATES)).write_pdf()
+    pdf = HTML(string=html, base_url=str(TEMPLATES), url_fetcher=_url_fetcher()).write_pdf()
     log.info("pdf built secs=%.1f", time.perf_counter() - start)
     return pdf
 

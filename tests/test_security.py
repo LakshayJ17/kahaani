@@ -2,19 +2,24 @@
 security headers, and shared stories that never carry (or mangle) a child's name."""
 
 import asyncio
+import http.server
 import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import httpx
 import jwt
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from kahaani import api, auth
-from kahaani.db import books, templates, usage, users
+from kahaani import blobs as blobs_module
+from kahaani.db import Store, books, templates, usage, users
 from kahaani.library import anonymise, personalise, still_named
+from kahaani.pipeline import assembler
 from kahaani.schemas import CharacterSheet, Page, Story
 from tests.test_api import FORM, as_user, make_book, signup, wait
 
@@ -344,3 +349,213 @@ def test_such_stories_are_not_shared(env):
     make_book(client, "ana", child_name="Meera", favourites="kites")
     with svc.store.engine.connect() as c:
         assert c.execute(select(func.count()).select_from(templates)).scalar_one() == 1
+
+
+# ----------------------------------------------------------------------------- request limits
+
+
+def test_rate_limit_window_slides_and_forgets_idle_accounts():
+    now = [0.0]
+    limit = api.RateLimit(2, 60, clock=lambda: now[0])
+    limit.check("ana")
+    limit.check("ana")
+    with pytest.raises(HTTPException) as e:
+        limit.check("ana")
+    assert e.value.status_code == 429 and e.value.headers["Retry-After"] == "60"
+    limit.check("ben")  # one account's burst doesn't block another
+    now[0] = 61
+    limit.check("ana")  # the old requests have left the window
+    now[0] = 200
+    limit.sweep()
+    assert limit.hits == {}
+
+
+def test_signed_in_requests_are_limited_per_account(env):
+    client, svc, _ = env
+    signup(client, "ana")
+    svc.requests = api.RateLimit(3, 60)
+    codes = [client.get("/api/me", headers=as_user("ana")).status_code for _ in range(4)]
+    assert codes == [200, 200, 200, 429]
+    r = client.get("/api/me", headers=as_user("ana"))
+    assert "retry-after" in r.headers and r.headers["x-frame-options"] == "DENY"
+    assert client.get("/api/me", headers=as_user("ben")).status_code == 200
+
+
+def test_file_links_are_limited_per_account(env):
+    client, svc, _ = env
+    signup(client, "ana")
+    cover = make_book(client, "ana")["heroUrl"]
+    svc.files = api.RateLimit(2, 60)
+    assert [client.get(cover).status_code for _ in range(3)] == [200, 200, 429]
+
+
+def test_only_real_rebuilds_count_towards_the_build_limit(env):
+    client, svc, _ = env
+    signup(client, "ana")
+    book = make_book(client, "ana")
+    svc._pdf = lambda user_id, book_id: b"%PDF"
+    svc.rebuilds = api.RateLimit(1, 3600)
+    assert client.get(book["pdfUrl"]).status_code == 200  # built
+    assert client.get(book["pdfUrl"]).status_code == 200  # cached copy, not counted
+    svc.builds.drop(book["id"])
+    r = client.get(book["pdfUrl"])  # would have to build again
+    assert r.status_code == 429 and "this hour" in r.json()["detail"]
+
+
+# ------------------------------------------------------------------------ never trust the site
+
+
+def test_a_made_up_page_number_uses_nothing(env):
+    client, svc, _ = env
+    signup(client, "ana")
+    book = make_book(client, "ana")
+    for number in (0, 99):
+        r = client.post(
+            f"/api/library/{book['id']}/pages/{number}/redo",
+            json={"request": "add a red kite"},
+            headers=as_user("ana"),
+        )
+        assert r.status_code == 404
+    assert svc.store.uses_since(0, "page", "dev-ana") == 0
+    assert not [j for j in svc.all_jobs() if j.redo_book_id]
+
+
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("pages/1/redo", {"request": "x" * 201}),
+        ("progress", {"page": -1}),
+        ("progress", {"page": 101}),
+        ("feedback", {"rating": 1, "tags": ["funny"] * 21}),
+    ],
+)
+def test_out_of_range_values_are_refused(env, path, body):
+    client, _, _ = env
+    signup(client, "ana")
+    book = make_book(client, "ana")
+    r = client.post(f"/api/library/{book['id']}/{path}", json=body, headers=as_user("ana"))
+    assert r.status_code == 422
+
+
+# ------------------------------------------------------------------------ what is published
+
+
+def test_no_api_map_or_debug_pages(env):
+    client, _, _ = env
+    for path in ("/openapi.json", "/docs", "/redoc"):
+        assert client.get(path).status_code == 404
+    assert client.app.debug is False
+
+
+def test_content_security_policy_allows_only_the_site_and_supabase():
+    csp = api.content_security_policy("https://abc.supabase.co/")
+    parts = dict(p.split(" ", 1) for p in csp.split("; "))
+    assert parts["default-src"] == "'self'"
+    assert parts["connect-src"] == "'self' https://abc.supabase.co"
+    assert parts["script-src"] == "'self' 'unsafe-inline'"  # no 'unsafe-eval', no other hosts
+    assert parts["object-src"] == "'none'" and parts["frame-ancestors"] == "'none'"
+    assert "connect-src 'self';" in api.content_security_policy(None) + ";"
+
+
+def test_cross_origin_calls_only_from_the_local_dev_site(env, monkeypatch):
+    _, svc, _ = env
+    preflight = {"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST"}
+
+    monkeypatch.delenv("HOST", raising=False)  # running on a laptop
+    local = TestClient(api.create_app(svc)).options("/api/books", headers=preflight)
+    assert local.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "PUT" not in local.headers["access-control-allow-methods"]
+
+    monkeypatch.setenv("HOST", "0.0.0.0")  # the deployed container
+    deployed = TestClient(api.create_app(svc)).options("/api/books", headers=preflight)
+    assert "access-control-allow-origin" not in deployed.headers
+
+
+# ----------------------------------------------------------------------------- PDF renderer
+
+
+@pytest.mark.parametrize(
+    "url, ok",
+    [
+        ("data:image/jpeg;base64,AAAA", True),
+        ((assembler.TEMPLATES / "fonts" / "Baloo2.ttf").as_uri(), True),
+        ("http://169.254.169.254/latest/meta-data/", False),
+        ("https://example.com/a.png", False),
+        ("ftp://example.com/a", False),
+        ("file:///etc/passwd", False),
+        ((assembler.TEMPLATES / ".." / ".." / ".env").as_uri(), False),
+        ("file://other-host/share/x", False),
+    ],
+)
+def test_book_html_can_only_load_its_own_files(url, ok):
+    assert assembler.allowed_url(url) is ok
+
+
+def test_pdf_renderer_makes_no_outside_requests():
+    hits = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    port = server.server_address[1]
+    html = (
+        "<html><head><style>@font-face { font-family: B; src: url('fonts/Baloo2.ttf'); }"
+        f"body {{ font-family: B; background: url('http://127.0.0.1:{port}/css'); }}</style>"
+        "<link rel='stylesheet' href='file:///etc/hosts'></head>"
+        f"<body>Hello <img src='http://127.0.0.1:{port}/img'></body></html>"
+    )
+    try:
+        pdf = assembler.build_pdf(html)
+    except OSError:
+        pytest.skip("WeasyPrint's system libraries (pango) aren't installed")
+    finally:
+        server.shutdown()
+    assert pdf.startswith(b"%PDF") and hits == []
+
+
+# ------------------------------------------------------------------------ storage and admin log
+
+
+def test_a_public_bucket_is_switched_back_to_private(monkeypatch):
+    calls = []
+
+    def fake(method):
+        def call(url, **kw):
+            calls.append((method, url.rsplit("/storage/v1/", 1)[1], kw.get("json")))
+            if method == "post":
+                return httpx.Response(409)
+            if method == "get":
+                return httpx.Response(200, json={"id": "kahaani", "public": True})
+            return httpx.Response(200, json={"message": "ok"})
+
+        return call
+
+    for method in ("post", "get", "put"):
+        monkeypatch.setattr(blobs_module.httpx, method, fake(method))
+    blobs_module.SupabaseBlobs("https://abc.supabase.co", "secret").ensure_bucket()
+    assert calls[-1] == (
+        "put",
+        "bucket/kahaani",
+        {"id": "kahaani", "name": "kahaani", "public": False},
+    )
+
+
+def test_admin_changes_are_logged_with_the_change_or_not_at_all(tmp_path):
+    store = Store(f"sqlite:///{tmp_path}/k.db")
+    store.create_all()
+    store.log_admin("template.disable", "t1", "The lost kite")
+    with pytest.raises(RuntimeError), store.engine.begin() as c:
+        store.log_admin("template.enable", "t1", conn=c)
+        raise RuntimeError("the change failed")
+    rows = store.admin_actions()
+    assert [(r["action"], r["target"], r["detail"]) for r in rows] == [
+        ("template.disable", "t1", "The lost kite")
+    ]
