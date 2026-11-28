@@ -45,20 +45,20 @@ export default function BooksPage() {
         ) : !me ? (
           <div className="mt-6 max-w-xl">
             <p className="text-ink-soft">
-              Sign in to see the books you&rsquo;ve made.
+              Sign in to see the books you&apos;ve made.
             </p>
             <Button
               className="mt-5"
               onClick={() => signIn("/books/")}
               loading={signingIn}
-              loadingText="Opening Google…"
+              loadingText="Opening Google..."
             >
               Sign in with Google
             </Button>
           </div>
         ) : failed ? (
           <p className="mt-6 text-danger">
-            Your library couldn&rsquo;t be loaded. Please refresh.
+            Your library couldn&apos;t be loaded. Please refresh.
           </p>
         ) : !library ? (
           <Loading label="Opening your library" />
@@ -187,7 +187,7 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
   return (
     <div className="w-full max-w-xl border-l-4 border-danger bg-page px-5 py-4">
       <p className="font-medium">Delete your account and every book in it?</p>
-      <p className="mt-1 text-ink-soft">This can&rsquo;t be undone.</p>
+      <p className="mt-1 text-ink-soft">This can&apos;t be undone.</p>
       <div className="mt-4 flex gap-3">
         <button
           disabled={working}
@@ -206,7 +206,7 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
           className="inline-flex items-center gap-2 rounded-full bg-danger px-5 py-2 font-medium text-white disabled:opacity-70"
         >
           {working && <span className="btn-spinner" aria-hidden="true" />}
-          {working ? "Deleting…" : "Delete everything"}
+          {working ? "Deleting..." : "Delete everything"}
         </button>
         <button
           onClick={() => setAsking(false)}

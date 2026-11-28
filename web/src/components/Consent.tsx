@@ -21,8 +21,8 @@ export default function Consent() {
         </p>
         <p>
           To make books faster for everyone, a copy of each new story is kept
-          with the child&rsquo;s name removed. Another family asking for a very
-          similar story may get it, with their own child&rsquo;s name. The
+          with the child&apos;s name removed. Another family asking for a very
+          similar story may get it, with their own child&apos;s name. The
           pictures are always fictional drawings made from the words you type;
           no photos are ever used.
         </p>
@@ -50,7 +50,7 @@ export default function Consent() {
       <Button
         disabled={!agreed}
         loading={saving}
-        loadingText="Saving…"
+        loadingText="Saving..."
         onClick={async () => {
           setSaving(true);
           try {

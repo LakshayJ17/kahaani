@@ -50,7 +50,7 @@ export function SiteHeader() {
                 {signingIn && (
                   <span className="btn-spinner" aria-hidden="true" />
                 )}
-                {signingIn ? "Signing in…" : "Sign in"}
+                {signingIn ? "Signing in..." : "Sign in"}
               </button>
             )}
           </li>

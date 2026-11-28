@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 
 export const metadata: Metadata = {
-  title: "Privacy policy · Kahaani",
+  title: "Privacy policy",
   description: "How Kahaani collects, uses, stores and deletes information.",
 };
 
@@ -85,10 +85,10 @@ export default function PrivacyPage() {
               <h2>Shared stories</h2>
               <p>
                 When a new story is written, an anonymous copy is also kept with
-                the child&rsquo;s name removed and without narration. If another
+                the child&apos;s name removed and without narration. If another
                 family later asks for a very similar story, they may receive
-                this copy with their own child&rsquo;s name. Shared copies never
-                contain your name, your email or your child&rsquo;s name. You
+                this copy with their own child&apos;s name. Shared copies never
+                contain your name, your email or your child&apos;s name. You
                 agree to this before your first book, and any parent can report
                 a story to take it out of sharing.
               </p>
@@ -112,7 +112,7 @@ export default function PrivacyPage() {
                 <li>
                   <strong>Cloudflare (Workers AI)</strong> draws the pictures
                   from an English description that never includes your
-                  child&rsquo;s name.
+                  child&apos;s name.
                 </li>
                 <li>
                   <strong>Microsoft (Edge text-to-speech)</strong> records the
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
                   your library
                 </Link>
                 . Deleting your account removes your sign-in, your books, your
-                children&rsquo;s names and your feedback. Anonymous shared
+                children&apos;s names and your feedback. Anonymous shared
                 copies, which contain no names, may remain.
               </p>
             </section>
@@ -188,7 +188,7 @@ export default function PrivacyPage() {
                   href="https://github.com/LakshayJ17/kahaani/issues"
                   className="text-ink underline underline-offset-4"
                 >
-                  Kahaani&rsquo;s GitHub page
+                  Kahaani&apos;s GitHub page
                 </a>
                 .
               </p>

@@ -9,11 +9,11 @@ group: `uv sync --group eval`, or prefix commands with `uv run --group eval`.
 
 | Script | What it does | API cost |
 |---|---|---|
-| `run_stories.py` | 30 briefs → `out/stories.jsonl` | 1-2 LLM calls per story |
-| `safety_suite.py` | 61 adversarial / control briefs through schema → rules → (LLM) | 0 (rules), ≤29 with `--llm` |
+| `run_stories.py` | 30 briefs -> `out/stories.jsonl` | 1-2 LLM calls per story |
+| `safety_suite.py` | 61 adversarial / control briefs through schema -> rules -> (LLM) | 0 (rules), up to 29 with `--llm` |
 | `story_judge.py` | LLM-as-judge rubric over the stories | 1 LLM call per story |
 | `consistency.py` | character-consistency experiment (4 setups) | images + 1 vision call per page |
-| `quality_review.py` | runs the quality reviewer over the stories → `out/quality_review.jsonl` | 1 LLM call per story |
+| `quality_review.py` | runs the quality reviewer over the stories -> `out/quality_review.jsonl` | 1 LLM call per story |
 | `request_probes.py` | 28 offensive, manipulative and ordinary requests (form and page changes) through the input checks | 1 LLM call per request |
 | `respect_review.py` | 28 respect probes (offensive passages and inclusive controls) through the reviewer | 1 LLM call per probe |
 | `report.py` | `out/report.md` + `out/charts/*.png` from whatever exists | 0 |
@@ -67,11 +67,11 @@ uv run python -m eval.consistency generate --setup reference --limit 2
 # ipadapter: run notebooks/ip_adapter_kaggle.ipynb, unzip into eval/out/images/
 uv run --group eval python -m eval.consistency score-clip
 uv run python -m eval.consistency score-judge --limit 20
-uv run python -m eval.consistency make-human-pairs   # out/human_pairs/ → send to raters
+uv run python -m eval.consistency make-human-pairs   # out/human_pairs/ -> send to raters
 uv run python -m eval.consistency score-human out/human_pairs/answers_*.csv
 ```
 
-- `generate` defaults to 2 stories × 4 pages (Cloudflare's free quota is limited) and skips
+- `generate` defaults to 2 stories of 4 pages (Cloudflare's free quota is limited) and skips
   existing files.
 - **CLIP** (ViT-B-32, laion2b): cosine of each page vs. the hero, plus mean page-to-page
   similarity. CLIP sees the whole picture, so backgrounds and palette move it too.
@@ -86,5 +86,5 @@ Outputs: `out/consistency_{clip,judge,human,gen}.jsonl`.
 ## Report
 
 ```bash
-uv run --group eval python -m eval.report    # → out/report.md, out/charts/*.png
+uv run --group eval python -m eval.report    # -> out/report.md, out/charts/*.png
 ```

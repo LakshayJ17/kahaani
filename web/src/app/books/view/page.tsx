@@ -97,7 +97,7 @@ function View() {
           className="mt-5"
           onClick={() => signIn(`/books/view/?id=${id}`)}
           loading={signingIn}
-          loadingText="Opening Google…"
+          loadingText="Opening Google..."
         >
           Sign in with Google
         </Button>
@@ -165,7 +165,7 @@ function View() {
           {confirmDelete && (
             <div className="mt-6 border-l-4 border-danger bg-page px-5 py-4">
               <p className="font-medium">
-                Delete this book? This can&rsquo;t be undone.
+                Delete this book? This can&apos;t be undone.
               </p>
               <div className="mt-3 flex gap-3">
                 <button
@@ -185,7 +185,7 @@ function View() {
                   {deleting && (
                     <span className="btn-spinner" aria-hidden="true" />
                   )}
-                  {deleting ? "Deleting…" : "Delete"}
+                  {deleting ? "Deleting..." : "Delete"}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}

@@ -50,7 +50,7 @@ export function ParentNote() {
       </Reveal>
 
       <Reveal className="mt-20 flex flex-col items-center text-center">
-        <h2 className="text-head">Tonight&rsquo;s story is a minute away</h2>
+        <h2 className="text-head">Tonight&apos;s story is a minute away</h2>
         <ButtonLink href="/create/" className="mt-6">
           Make a book
         </ButtonLink>

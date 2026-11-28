@@ -49,7 +49,7 @@ export function WhatsInside() {
     >
       <Reveal className="paper rounded-[22px] px-6 py-12 sm:px-12 lg:px-16">
         <h2 id="inside-title" className="text-head">
-          What&rsquo;s inside every book
+          What&apos;s inside every book
         </h2>
         <ul className="mt-10 grid gap-x-12 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
           {ITEMS.map(({ icon: Icon, title, body }) => (

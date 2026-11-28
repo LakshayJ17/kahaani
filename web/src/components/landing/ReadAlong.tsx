@@ -85,7 +85,7 @@ export function ReadAlong() {
                       />
                     </span>
                     <span className="font-display text-lead">
-                      Play &ldquo;{sample.title}&rdquo;
+                      Play &quot;{sample.title}&quot;
                     </span>
                   </button>
                 )}

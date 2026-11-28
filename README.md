@@ -29,7 +29,7 @@ their child as the hero, as a PDF book and a read-along video.
 ## How it works
 
 ```
-Website (Next.js)  →  API (FastAPI)  →  book pipeline
+Website (Next.js)  ->  API (FastAPI)  ->  book pipeline
 
  1. Check the request     rule checks, then an AI check of intent and prompt injection
  2. Reuse or write        a matching shared story, or a new one generated as JSON and
@@ -41,7 +41,7 @@ Website (Next.js)  →  API (FastAPI)  →  book pipeline
  6. Check the pictures    broken-image checks, then a vision check for safety, stray
                           writing, distorted bodies and scene match
  7. Narrate               text-to-speech, in parallel with drawing
- 8. Assemble and save     HTML → PDF → page images → MP4, saved to the family's library
+ 8. Assemble and save     HTML -> PDF -> page images -> MP4, saved to the family's library
 ```
 
 Key design decisions:
@@ -117,7 +117,7 @@ All settings are environment variables; see [.env.example](.env.example).
 | `CLOUDFLARE_IMAGE_MODEL`, `IMAGE_PROVIDER` | Image model; `placeholder` for offline development |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` | Sign-in and file storage |
 | `SUPABASE_JWT_SECRET` | Only for projects still using the legacy HS256 JWT secret |
-| `DATABASE_URL` | Postgres connection (`postgresql+psycopg://…`); SQLite if unset |
+| `DATABASE_URL` | Postgres connection (`postgresql+psycopg://...`); SQLite if unset |
 | `KAHAANI_URL_SECRET` | Signs the short-lived links to pictures and downloads |
 | `BOOKS_PER_DAY`, `GLOBAL_BOOKS_PER_DAY` | Per-account and site-wide daily limits |
 | `REQUIRE_IMAGE_CHECK` | Refuse to deliver a book if the picture check is unavailable |
@@ -125,19 +125,19 @@ All settings are environment variables; see [.env.example](.env.example).
 
 ### Setting up Supabase
 
-1. Create a Supabase project. From Project settings → API Keys, copy the project URL, the
-   publishable key (`sb_publishable_…`) and the secret key (`sb_secret_…`) into
+1. Create a Supabase project. From Project settings > API Keys, copy the project URL, the
+   publishable key (`sb_publishable_...`) and the secret key (`sb_secret_...`) into
    `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`. Legacy `anon` and
    `service_role` keys are also accepted (`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`).
-   If Project settings → JWT Keys still lists a legacy JWT secret as the current key, copy it
+   If Project settings > JWT Keys still lists a legacy JWT secret as the current key, copy it
    into `SUPABASE_JWT_SECRET`.
-2. Copy the Session pooler connection string (Connect → Session pooler) into `DATABASE_URL`,
+2. Copy the Session pooler connection string (Connect > Session pooler) into `DATABASE_URL`,
    using the `postgresql+psycopg://` prefix.
 3. Create a Google OAuth client (web application) with the redirect URI
    `https://<project>.supabase.co/auth/v1/callback`, and add its ID and secret under
-   Authentication → Providers → Google.
-4. Add the site address (for example `http://127.0.0.1:8000/**`) to Authentication → URL
-   configuration → Redirect URLs.
+   Authentication > Providers > Google.
+4. Add the site address (for example `http://127.0.0.1:8000/**`) to Authentication > URL
+   configuration > Redirect URLs.
 
 The API creates its tables in a private `kahaani` schema with row-level security, and a
 private storage bucket, on start-up.
@@ -226,12 +226,12 @@ review; see [eval/README.md](eval/README.md) for each script.
 
 | Measure | Result |
 |---|---|
-| Character consistency (vision judge, 1–5) | 5.0 with reference images, 4.8 with a fixed prompt, 3.2 baseline |
+| Character consistency (vision judge, 1-5) | 5.0 with reference images, 4.8 with a fixed prompt, 3.2 baseline |
 | Safety suite (61 cases) | 50 of 50 unsafe requests blocked; 0 of 11 safe requests wrongly blocked |
 | Respect probes (28 cases, English and Hindi) | 18 of 18 offensive passages stopped; 10 of 10 inclusive controls shown |
 | Request probes (28 form and page-change requests) | 18 of 18 offensive or manipulative requests blocked; 10 of 10 ordinary ones allowed |
 | Story generation (30 briefs, Hindi and English) | 30 of 30 valid stories |
-| Story quality (LLM judge, 1–5) | 4.4 to 5.0 across all five criteria |
+| Story quality (LLM judge, 1-5) | 4.4 to 5.0 across all five criteria |
 | Quality review (30 stories) | 28 approved (7 after automatic grammar fixes), 2 rewritten |
 
 ![Baseline, fixed prompt and reference image compared](docs/consistency.jpg)

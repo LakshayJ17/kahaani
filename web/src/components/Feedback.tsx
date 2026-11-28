@@ -106,7 +106,7 @@ export default function Feedback({
             <Button
               disabled={!dirty && !!initial}
               loading={saving}
-              loadingText="Saving…"
+              loadingText="Saving..."
               onClick={async () => {
                 setSaving(true);
                 try {

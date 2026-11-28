@@ -242,7 +242,7 @@ export default function BookReader({
                 <Button
                   type="submit"
                   loading={redoing}
-                  loadingText="Checking your request…"
+                  loadingText="Checking your request..."
                 >
                   Rewrite page {page.number}
                 </Button>

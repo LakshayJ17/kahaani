@@ -103,7 +103,7 @@ export function BookHero() {
             </h1>
             <p className="mt-4 max-w-[30rem] text-lead text-ink-soft">
               Describe your child in a few words. In about a minute,
-              they&rsquo;re the hero of their own picture book.
+              they&apos;re the hero of their own picture book.
             </p>
             <ul className="mt-6 flex flex-wrap gap-2">
               {INCLUDED.map(({ icon: Icon, label }) => (

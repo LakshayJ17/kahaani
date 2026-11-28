@@ -125,7 +125,7 @@ export default function BriefForm({
         {kid && (
           <div className="rounded-xl bg-mood-calm px-5 py-4">
             <p className="font-medium">
-              What we&rsquo;ve learned about {kid.name}
+              What we&apos;ve learned about {kid.name}
             </p>
             <p className="mt-1 text-ink-soft">
               {kid.taste.summary.length
@@ -358,12 +358,12 @@ export default function BriefForm({
           <Button
             type="submit"
             loading={sending}
-            loadingText="Checking your details…"
+            loadingText="Checking your details..."
           >
             Write the story
           </Button>
           <p className="text-small text-ink-soft">
-            You&rsquo;ll get a picture book (PDF) and a narrated read-along
+            You&apos;ll get a picture book (PDF) and a narrated read-along
             video.
           </p>
         </div>

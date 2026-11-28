@@ -23,7 +23,7 @@ def _mean(xs: list[float]) -> float | None:
 
 
 def _fmt(x) -> str:
-    return "–" if x is None else str(x)
+    return "-" if x is None else str(x)
 
 
 def _setup_key(s: str) -> tuple[int, str]:
@@ -81,11 +81,11 @@ def consistency_section(out: Path) -> tuple[list[str], dict]:
         [
             "Setup",
             "Stories (CLIP)",
-            "CLIP page↔ref",
-            "CLIP page↔page",
+            "CLIP page-ref",
+            "CLIP page-page",
             "Pages judged",
             "Judge mean (1-5)",
-            "Judge ≥4 %",
+            "Judge 4+ %",
             "Human pairs",
             "Human 'same' %",
         ],

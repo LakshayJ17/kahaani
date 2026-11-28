@@ -252,7 +252,7 @@ export default function Studio() {
                   >
                     {job?.title ??
                       (stage === "working"
-                        ? "Writing your story…"
+                        ? "Writing your story..."
                         : "Your child's book")}
                   </p>
                   <p className="text-small text-ink-soft">
@@ -327,13 +327,13 @@ export default function Studio() {
                       className="mt-6"
                       onClick={() => signIn()}
                       loading={signingIn}
-                      loadingText="Opening Google…"
+                      loadingText="Opening Google..."
                     >
                       Continue with Google
                     </Button>
                   ) : (
                     <p className="mt-6 text-ink-soft">
-                      Sign-in isn&rsquo;t set up on this server yet.
+                      Sign-in isn&apos;t set up on this server yet.
                     </p>
                   )}
                 </div>
@@ -346,7 +346,7 @@ export default function Studio() {
                   </h2>
                   <p className="mt-1 text-body">{existing.title}</p>
                   <p className="mt-2 text-small text-ink-soft">
-                    We keep one copy of each book, so it isn&rsquo;t made twice.
+                    We keep one copy of each book, so it isn&apos;t made twice.
                   </p>
                   <div className="mt-5 flex flex-wrap gap-3">
                     <Button
@@ -361,7 +361,7 @@ export default function Studio() {
                       variant="secondary"
                       onClick={() => lastBrief && create(lastBrief, true)}
                       loading={pending === "fresh"}
-                      loadingText="Starting…"
+                      loadingText="Starting..."
                     >
                       Write a new version
                     </Button>
@@ -390,7 +390,7 @@ export default function Studio() {
                       onClick={() => run(() => api.approve(job.id), "approve")}
                       disabled={busy}
                       loading={pending === "approve"}
-                      loadingText="Starting the pages…"
+                      loadingText="Starting the pages..."
                     >
                       Yes, draw the pages
                     </Button>
@@ -399,7 +399,7 @@ export default function Studio() {
                       onClick={() => run(() => api.newHero(job.id), "hero")}
                       disabled={busy}
                       loading={pending === "hero"}
-                      loadingText="Drawing…"
+                      loadingText="Drawing..."
                       icon={<RefreshCw className="size-4" strokeWidth={1.5} />}
                     >
                       Another picture

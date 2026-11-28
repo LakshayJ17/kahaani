@@ -22,8 +22,8 @@ const hind = Hind({
 
 export const metadata: Metadata = {
   title: {
-    default: "Kahaani · A bedtime story starring your child",
-    template: "%s · Kahaani",
+    default: "Kahaani | A bedtime story starring your child",
+    template: "%s | Kahaani",
   },
   description:
     "Describe your child and get an illustrated, narrated storybook in Hindi or English, as a PDF and a read-along video.",

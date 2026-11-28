@@ -29,7 +29,7 @@ export function Loading({
         <span className="loader-right" />
         <span className="loader-leaf" />
       </div>
-      <p className="font-display text-lead">{label}&hellip;</p>
+      <p className="font-display text-lead">{label}...</p>
       {slow && (
         <p className="max-w-xs text-small text-ink-soft">
           This is taking a little longer than usual. The server may be waking
